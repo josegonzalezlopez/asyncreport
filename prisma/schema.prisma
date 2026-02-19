@@ -1,0 +1,148 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TECH_LEAD
+  USER
+}
+
+enum Specialization {
+  DEVELOPER
+  DESIGNER
+  ANALYST
+  QA
+  DEVOPS
+  OTHER
+}
+
+enum ProjectStatus {
+  ACTIVE
+  PAUSED
+  FINISHED
+  ARCHIVED
+}
+
+enum NotificationSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+model User {
+  id               String          @id @default(cuid())
+  clerkUserId      String          @unique
+  email            String          @unique
+  name             String?
+  imageUrl         String?
+  role             Role            @default(USER)
+  specialization   Specialization  @default(OTHER)
+
+  projectMemberships ProjectUser[]
+  dailyReports       DailyReport[]
+  notifications      Notification[] @relation("UserNotifications")
+  aiSummaries        AISummary[]    @relation("UserAISummaries")
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model Project {
+  id           String        @id @default(cuid())
+  name         String
+  code         String?       @unique
+  description  String?
+  status       ProjectStatus @default(ACTIVE)
+
+  memberships  ProjectUser[]
+  dailyReports DailyReport[]
+  aiSummaries  AISummary[]
+  notifications Notification[] @relation("ProjectNotifications")
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model ProjectUser {
+  id        String   @id @default(cuid())
+
+  userId    String
+  projectId String
+
+  user      User     @relation(fields: [userId], references: [id])
+  project   Project  @relation(fields: [projectId], references: [id])
+
+  isTechLead Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, projectId])
+  @@index([projectId])
+}
+
+model DailyReport {
+  id           String   @id @default(cuid())
+
+  userId       String
+  projectId    String
+
+  reportDate   DateTime
+  yesterday    String
+  today        String
+  blockers     String?
+  mood         Int
+  fromCli      Boolean  @default(false)
+
+  user         User     @relation(fields: [userId], references: [id])
+  project      Project  @relation(fields: [projectId], references: [id])
+
+  createdAt    DateTime @default(now())
+
+  @@index([userId, reportDate])
+  @@index([projectId, reportDate])
+}
+
+model Notification {
+  id          String                @id @default(cuid())
+
+  userId      String?
+  projectId   String?
+
+  type        String
+  message     String
+  severity    NotificationSeverity  @default(INFO)
+  readAt      DateTime?
+  createdAt   DateTime              @default(now())
+
+  user        User?                 @relation("UserNotifications", fields: [userId], references: [id])
+  project     Project?              @relation("ProjectNotifications", fields: [projectId], references: [id])
+
+  @@index([userId])
+  @@index([projectId])
+}
+
+model AISummary {
+  id            String   @id @default(cuid())
+
+  projectId     String
+  generatedById String?
+
+  rangeStart    DateTime
+  rangeEnd      DateTime
+  content       String
+  risks         String?
+
+  project       Project  @relation(fields: [projectId], references: [id])
+  generatedBy   User?    @relation("UserAISummaries", fields: [generatedById], references: [id])
+
+  createdAt     DateTime @default(now())
+
+  @@index([projectId, rangeEnd])
+}
+

@@ -1,0 +1,30 @@
+---
+description: Estándares de arquitectura, seguridad y desarrollo para AsyncReport (Next.js 15)
+globs: **/*.{ts,tsx}
+---
+
+# AsyncReport: Estándares de Desarrollo
+
+Eres un experto en Next.js 15 y TypeScript. Tu objetivo es ayudar a un desarrollador con sólida experiencia en Angular a construir una aplicación robusta siguiendo estas reglas estrictas:
+
+## 1. Arquitectura y Patrones
+- **NO USAR Server Actions:** Toda la comunicación entre cliente y servidor debe realizarse mediante **API Routes** situadas en `/app/api/`.
+- **Service Pattern:** Implementar una capa de servicios en `/lib/services/`. Las API Routes solo deben gestionar la petición/respuesta y delegar la lógica de negocio a estos servicios (similar a los Services de Angular).
+- **Frontend:** Usar React Server Components (RSC) por defecto y 'use client' solo cuando sea estrictamente necesario para interactividad.
+
+## 2. Seguridad (RBAC & Validaciones)
+- **Validación de API:** Todas las rutas de API deben usar **Zod** para validar el cuerpo (body) y los parámetros de la petición.
+- **Autenticación:** Verificar siempre la sesión de **Clerk** en el middleware o directamente en la API Route.
+- **Roles:** Respetar el Role-Based Access Control (ADMIN, TECH_LEAD, USER). El rol debe verificarse antes de ejecutar lógica sensible.
+
+## 3. Base de Datos
+- Usar **Prisma ORM** para todas las interacciones con PostgreSQL.
+- Mantener el tipado estricto generado por Prisma en los servicios.
+
+## 4. Estilo y UI
+- Utilizar **Tailwind CSS** y componentes de **shadcn/ui**.
+- Las interfaces deben ser modernas, limpias y profesionales.
+
+## 5. Mentalidad de Transición (Angular -> React)
+- Cuando se mencione lógica basada en RxJS o Observables, sugiere alternativas basadas en Hooks de React o estados declarativos.
+- Mantener el código limpio, modular y altamente tipado.

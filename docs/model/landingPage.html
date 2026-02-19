@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AsyncReport - Opción B</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { background: '#020617' },
+                    animation: { 'fade-in': 'fadeIn 1s ease-out' },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-[#020617] text-white antialiased h-screen overflow-hidden flex flex-col">
+
+    <nav class="absolute top-0 left-0 right-0 p-6 z-50 flex justify-between items-center container mx-auto">
+        <div class="flex items-center gap-2 font-bold text-xl tracking-tight">
+            <div class="w-8 h-8 bg-gradient-to-br from-sky-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                <i data-lucide="activity" class="text-white h-5 w-5"></i>
+            </div>
+            AsyncReport
+        </div>
+        <a href="#" class="text-sm text-slate-400 hover:text-white transition-colors">Iniciar Sesión</a>
+    </nav>
+
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-2 h-full">
+
+        <div class="flex flex-col justify-center px-8 sm:px-16 lg:px-24 relative z-10 animate-fade-in">
+
+            <div class="inline-flex items-center gap-2 text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-1 rounded-full text-xs font-semibold w-fit mb-6">
+                <i data-lucide="clock" class="h-3 w-3"></i>
+                Deja de perder tiempo
+            </div>
+
+            <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6">
+                ¿Otra reunión que pudo ser un <span class="text-sky-400">email</span>?
+            </h1>
+
+            <p class="text-lg text-slate-400 mb-8 max-w-md leading-relaxed">
+                AsyncReport reemplaza las standups diarias con un sistema asíncrono inteligente. Tu equipo reporta en 1 minuto, Gemini genera el resumen.
+            </p>
+
+            <form class="flex flex-col sm:flex-row gap-3 max-w-md mb-8">
+                <input
+                    type="email"
+                    placeholder="tu@empresa.com"
+                    class="bg-slate-900/50 border border-slate-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-sky-500 w-full"
+                >
+                <button type="button" class="bg-sky-500 hover:bg-sky-400 text-white font-semibold px-6 py-3 rounded-lg transition-all whitespace-nowrap flex items-center justify-center gap-2">
+                    Empezar <i data-lucide="arrow-right" class="h-4 w-4"></i>
+                </button>
+            </form>
+
+            <div class="border-t border-slate-800 pt-6">
+                <p class="text-xs text-slate-500 uppercase tracking-widest mb-4">Integrado con tu stack</p>
+                <div class="flex gap-6 opacity-40 grayscale hover:grayscale-0 transition-all">
+                    <div class="flex items-center gap-1 font-semibold"><i data-lucide="slack" class="h-4 w-4"></i> Slack</div>
+                    <div class="flex items-center gap-1 font-semibold"><i data-lucide="github" class="h-4 w-4"></i> GitHub</div>
+                    <div class="flex items-center gap-1 font-semibold"><i data-lucide="trello" class="h-4 w-4"></i> Jira</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="relative hidden lg:block bg-slate-900/50 border-l border-white/5 overflow-hidden">
+            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/20 rounded-full blur-[100px]"></div>
+
+            <div class="absolute top-1/2 left-0 -translate-y-1/2 translate-x-12 w-full max-w-2xl shadow-2xl rounded-xl border border-slate-700 overflow-hidden transform rotate-[-2deg] hover:rotate-0 transition-transform duration-700 ease-out">
+                <div class="h-8 bg-slate-800 border-b border-slate-700 flex items-center px-4 gap-2">
+                    <div class="w-2.5 h-2.5 rounded-full bg-red-500/50"></div>
+                    <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/50"></div>
+                    <div class="w-2.5 h-2.5 rounded-full bg-green-500/50"></div>
+                    <div class="ml-4 h-4 w-64 bg-slate-900/50 rounded text-[10px] flex items-center px-2 text-slate-500">asyncreport.app/dashboard</div>
+                </div>
+                <img
+                    src="https://placehold.co/1200x800/1e293b/ffffff?text=AsyncReport+App+Interface"
+                    alt="Dashboard Preview"
+                    class="w-full h-auto object-cover opacity-90"
+                >
+                <div class="absolute bottom-8 right-8 bg-slate-900/90 backdrop-blur border border-emerald-500/30 p-4 rounded-lg shadow-xl max-w-xs animate-bounce" style="animation-duration: 3s;">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-emerald-500/20 p-2 rounded-md text-emerald-400">
+                            <i data-lucide="sparkles" class="h-4 w-4"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold text-emerald-100">Resumen Listo</p>
+                            <p class="text-[10px] text-slate-400 mt-1">Gemini ha detectado 2 bloqueos en el proyecto Backend.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
