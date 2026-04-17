@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum Role {
@@ -33,6 +32,20 @@ enum NotificationSeverity {
   INFO
   WARNING
   CRITICAL
+}
+
+enum NotificationType {
+  ASSIGNMENT
+  BLOCKER_ALERT
+  AI_SUMMARY_READY
+  SYSTEM
+}
+
+enum AISummaryStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
 }
 
 model User {
@@ -92,12 +105,14 @@ model DailyReport {
   userId       String
   projectId    String
 
-  reportDate   DateTime
-  yesterday    String
-  today        String
-  blockers     String?
-  mood         Int
-  fromCli      Boolean  @default(false)
+  reportDate    DateTime
+  yesterday     String
+  today         String
+  blockers      String?
+  isBlocker     Boolean  @default(false)
+  mood          Int
+  userTimezone  String?
+  fromCli       Boolean  @default(false)
 
   user         User     @relation(fields: [userId], references: [id])
   project      Project  @relation(fields: [projectId], references: [id])
@@ -106,6 +121,7 @@ model DailyReport {
 
   @@index([userId, reportDate])
   @@index([projectId, reportDate])
+  @@index([isBlocker])
 }
 
 model Notification {
@@ -114,35 +130,44 @@ model Notification {
   userId      String?
   projectId   String?
 
-  type        String
+  type        NotificationType      @default(SYSTEM)
+  title       String
   message     String
   severity    NotificationSeverity  @default(INFO)
+  isRead      Boolean               @default(false)
   readAt      DateTime?
+  metadata    Json?
   createdAt   DateTime              @default(now())
 
   user        User?                 @relation("UserNotifications", fields: [userId], references: [id])
   project     Project?              @relation("ProjectNotifications", fields: [projectId], references: [id])
 
-  @@index([userId])
+  @@index([userId, isRead])
   @@index([projectId])
 }
 
 model AISummary {
-  id            String   @id @default(cuid())
+  id            String          @id @default(cuid())
 
   projectId     String
   generatedById String?
 
-  rangeStart    DateTime
-  rangeEnd      DateTime
-  content       String
+  status        AISummaryStatus @default(PENDING)
+  summaryDate   DateTime?
+  rangeStart    DateTime?
+  rangeEnd      DateTime?
+  content       String          @default("")
   risks         String?
+  promptUsed    String?
+  tokenCount    Int?
+  errorMessage  String?
 
   project       Project  @relation(fields: [projectId], references: [id])
   generatedBy   User?    @relation("UserAISummaries", fields: [generatedById], references: [id])
 
   createdAt     DateTime @default(now())
 
-  @@index([projectId, rangeEnd])
+  @@index([projectId, createdAt])
+  @@index([status])
 }
 
