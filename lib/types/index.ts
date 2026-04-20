@@ -3,6 +3,7 @@ export type {
   Specialization,
   ProjectStatus,
   NotificationSeverity,
+  NotificationType,
   AISummaryStatus,
 } from '@prisma/client';
 
