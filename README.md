@@ -5,19 +5,19 @@ Plataforma SaaS para gestionar **dailies asíncronas** con **RBAC**, **notificac
 ### Arquitectura (reglas del proyecto)
 
 - **API Routes only**: todo backend en `app/api/**/route.ts` (no Server Actions).
-- **Service Pattern**: lógica/DB en `lib/services/**`; las routes solo validan/orquestan.
+- **Service Pattern**: lógica/DB en `lib/services/`**; las routes solo validan/orquestan.
 - **Seguridad**: validar input con **Zod** y autenticar con **Clerk** en cada endpoint sensible.
 
 ### Estructura inicial
 
-- **`app/`**: App Router (RSC por defecto)
+- `**app/`**: App Router (RSC por defecto)
   - `page.tsx`: landing mínima
   - `layout.tsx`: layout raíz
   - `app/api/health/route.ts`: endpoint ejemplo (público) usando un service
-- **`lib/`**
+- `**lib/**`
   - `db.ts`: PrismaClient singleton
   - `services/health.service.ts`: ejemplo de service
-- **`prisma/schema.prisma`**: modelos `User`, `Project`, `ProjectUser` (M-M), `DailyReport`, `Notification`, `AISummary`
+- `**prisma/schema.prisma**`: modelos `User`, `Project`, `ProjectUser` (M-M), `DailyReport`, `Notification`, `AISummary`
 
 ---
 
@@ -25,7 +25,7 @@ Plataforma SaaS para gestionar **dailies asíncronas** con **RBAC**, **notificac
 
 #### 1) Requisitos
 
-- Node.js \(recomendado **20+ LTS**\)
+- Node.js recomendado **20+ LTS**
 - PostgreSQL local o un proyecto en Supabase
 
 #### 2) Instalar Node.js (recomendado: nvm)
@@ -98,7 +98,7 @@ Luego abre `http://localhost:3000` y prueba `GET /api/health`.
 
 Para acelerar el desarrollo con consistencia (Zod + RBAC + Service Pattern), un agente de IA puede:
 
-- **Generar scaffolding** de endpoints (`app/api/**`) + services (`lib/services/**`) a partir del modelo Prisma.
+- **Generar scaffolding** de endpoints (`app/api/`**) + services (`lib/services/**`) a partir del modelo Prisma.
 - **Autogenerar** esquemas Zod (request/response) y pruebas contractuales.
 - **Detectar regresiones de seguridad** (falta de auth/RBAC/validación) en PRs mediante un job de CI.
 
