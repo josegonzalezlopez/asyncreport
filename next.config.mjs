@@ -7,6 +7,17 @@ const nextConfig = {
         hostname: "placehold.co",
         pathname: "/**",
       },
+      // Avatares de Google via Clerk
+      {
+        protocol: "https",
+        hostname: "img.clerk.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+        pathname: "/**",
+      },
     ],
   },
 };
