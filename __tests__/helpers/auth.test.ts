@@ -9,7 +9,18 @@ vi.mock('@clerk/nextjs/server', () => ({
 vi.mock('@/lib/services/user.service', () => ({
   userService: {
     findByClerkId: vi.fn(),
+    findById: vi.fn(),
   },
+}));
+
+vi.mock('@/lib/services/apikey.service', () => ({
+  apiKeyService: {
+    verify: vi.fn(),
+  },
+}));
+
+vi.mock('next/headers', () => ({
+  headers: vi.fn().mockResolvedValue({ get: vi.fn().mockReturnValue(null) }),
 }));
 
 import { auth } from '@clerk/nextjs/server';

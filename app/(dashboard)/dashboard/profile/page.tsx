@@ -4,10 +4,11 @@ import Image from 'next/image';
 import { prisma } from '@/lib/db';
 import { userService } from '@/lib/services/user.service';
 import { EditProfileForm } from '@/components/profile/EditProfileForm';
+import { ApiKeysManager } from '@/components/profile/ApiKeysManager';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { FolderKanban, User, ShieldCheck } from 'lucide-react';
+import { FolderKanban, User, ShieldCheck, KeyRound } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,6 +98,23 @@ export default async function ProfilePage() {
             currentName={user.name ?? ''}
             currentSpecialization={user.specialization}
           />
+        </CardContent>
+      </Card>
+
+      {/* API Keys para CLI */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <KeyRound className="h-4 w-4" />
+            API Keys (CLI)
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Genera tokens para autenticar el CLI sin exponer tu contraseña.
+            Cada token se muestra una sola vez al generarlo.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <ApiKeysManager />
         </CardContent>
       </Card>
 

@@ -1,28 +1,41 @@
 import { auth } from '@clerk/nextjs/server';
+import { headers } from 'next/headers';
 import { userService } from '@/lib/services/user.service';
+import { apiKeyService } from '@/lib/services/apikey.service';
 import type { AuthContext } from '@/lib/types';
 
 /**
  * Obtiene el contexto de autorización completo para una API Route o Server Action.
- * Retorna null si el usuario no tiene sesión activa o no existe en la DB.
+ * Soporta doble autenticación:
+ *   1. Sesión Clerk (uso web normal).
+ *   2. Bearer token en Authorization header (uso desde CLI con API Keys).
  *
- * Patrón de uso en API Routes:
- *   const ctx = await getAuthContext();
- *   if (!ctx) return errorResponse('Unauthorized', 401);
- *   if (!requireRole(ctx, 'ADMIN')) return errorResponse('Forbidden', 403);
+ * Retorna null si el usuario no tiene sesión activa o no existe en la DB.
  */
 export async function getAuthContext(): Promise<AuthContext | null> {
-  const { userId } = await auth();
-  if (!userId) return null;
+  // 1. Intentar autenticación vía Clerk
+  const { userId: clerkUserId } = await auth();
 
-  const user = await userService.findByClerkId(userId);
+  if (clerkUserId) {
+    const user = await userService.findByClerkId(clerkUserId);
+    if (!user) return null;
+    return { clerkUserId, dbUserId: user.id, role: user.role };
+  }
+
+  // 2. Fallback: Bearer token para CLI
+  const headerStore = await headers();
+  const authorization = headerStore.get('authorization') ?? '';
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  if (!match) return null;
+
+  const token = match[1];
+  const dbUserId = await apiKeyService.verify(token);
+  if (!dbUserId) return null;
+
+  const user = await userService.findById(dbUserId);
   if (!user) return null;
 
-  return {
-    clerkUserId: userId,
-    dbUserId: user.id,
-    role: user.role,
-  };
+  return { clerkUserId: '', dbUserId: user.id, role: user.role };
 }
 
 /**
