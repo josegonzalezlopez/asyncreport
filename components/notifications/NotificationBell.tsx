@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Bell } from 'lucide-react';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { NotificationList } from './NotificationList';
 import { cn } from '@/lib/utils';
 
@@ -131,6 +131,7 @@ export function NotificationBell() {
       </SheetTrigger>
 
       <SheetContent side="right" className="w-[360px] p-0">
+        <SheetTitle className="sr-only">Panel de notificaciones</SheetTitle>
         <NotificationList
           notifications={notifications}
           isLoading={isLoading}

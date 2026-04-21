@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockTx = {
   projectUser: { upsert: vi.fn() },
   project: { findUniqueOrThrow: vi.fn() },
+  user: { findUniqueOrThrow: vi.fn() },
   notification: { create: vi.fn() },
 };
 
@@ -22,6 +23,10 @@ vi.mock('@/lib/db', () => ({
     },
     $transaction: vi.fn((fn: (tx: typeof mockTx) => unknown) => fn(mockTx)),
   },
+}));
+
+vi.mock('@/lib/services/email.service', () => ({
+  sendProjectAssignmentEmail: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('next/cache', () => ({
@@ -78,6 +83,7 @@ describe('projectService.assignMember', () => {
     const membership = { userId: 'u1', projectId: 'p1', isTechLead: true };
     mockTx.projectUser.upsert.mockResolvedValue(membership);
     mockTx.project.findUniqueOrThrow.mockResolvedValue({ name: 'Mi Proyecto' });
+    mockTx.user.findUniqueOrThrow.mockResolvedValue({ email: 'u@test.com', name: 'User' });
     mockTx.notification.create.mockResolvedValue({ id: 'n1' });
 
     await projectService.assignMember('p1', { userId: 'u1', isTechLead: true });
@@ -97,6 +103,7 @@ describe('projectService.assignMember', () => {
   it('ejecuta el upsert una sola vez aunque el usuario ya sea miembro', async () => {
     mockTx.projectUser.upsert.mockResolvedValue({ isTechLead: false });
     mockTx.project.findUniqueOrThrow.mockResolvedValue({ name: 'P' });
+    mockTx.user.findUniqueOrThrow.mockResolvedValue({ email: 'u@test.com', name: 'User' });
     mockTx.notification.create.mockResolvedValue({ id: 'n1' });
 
     await projectService.assignMember('p1', { userId: 'u1', isTechLead: false });

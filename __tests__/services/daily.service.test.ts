@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('@/lib/db', () => ({
   prisma: {
-    projectUser: { findUnique: vi.fn() },
+    projectUser: { findUnique: vi.fn(), findFirst: vi.fn() },
+    project: { findUnique: vi.fn() },
     dailyReport: { create: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() },
     notification: { create: vi.fn() },
     $transaction: vi.fn(),
@@ -14,11 +15,14 @@ vi.mock('@/lib/helpers/dates', () => ({
   isSameLocalDay: vi.fn(() => false),
 }));
 
-// notification.service usa prisma directamente, así que sólo mocking el módulo
 vi.mock('@/lib/services/notification.service', () => ({
   notificationService: {
     notifyBlockerInTx: vi.fn().mockResolvedValue({}),
   },
+}));
+
+vi.mock('@/lib/services/email.service', () => ({
+  sendBlockerAlertEmail: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { prisma } from '@/lib/db';
@@ -26,6 +30,7 @@ import { dailyService } from '@/lib/services/daily.service';
 import type { CreateDailyDto } from '@/lib/validators/daily.schema';
 
 const mockProjectUser = vi.mocked(prisma.projectUser);
+const mockProject = vi.mocked(prisma.project);
 const mockDailyReport = vi.mocked(prisma.dailyReport);
 const mockTransaction = vi.mocked(prisma.$transaction);
 
@@ -43,7 +48,12 @@ const BASE_DTO: CreateDailyDto = {
   userTimezone: 'America/Argentina/Buenos_Aires',
 };
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  // Por defecto no hay tech lead en tests — evita llamadas extra
+  mockProjectUser.findFirst.mockResolvedValue(null);
+  mockProject.findUnique.mockResolvedValue(null);
+});
 
 describe('dailyService.create', () => {
   it('lanza error FORBIDDEN si el usuario no pertenece al proyecto', async () => {

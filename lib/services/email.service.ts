@@ -9,8 +9,17 @@ function getResendClient(): Resend {
   return new Resend(apiKey);
 }
 
-const FROM = process.env['RESEND_FROM_EMAIL'] ?? 'noreply@asyncreport.app';
+const FROM = process.env['RESEND_FROM_EMAIL'] ?? 'onboarding@resend.dev';
 const APP_URL = process.env['NEXT_PUBLIC_APP_URL'] ?? 'http://localhost:3000';
+
+/**
+ * En desarrollo, redirige todos los emails al RESEND_DEV_OVERRIDE_TO
+ * para no enviar a usuarios reales mientras se prueba.
+ */
+function resolveRecipient(email: string): string {
+  const override = process.env['RESEND_DEV_OVERRIDE_TO'];
+  return override && override !== 'tu-email@gmail.com' ? override : email;
+}
 
 /**
  * Envía email de bienvenida cuando un usuario es asignado a un proyecto.
@@ -28,7 +37,7 @@ export async function sendProjectAssignmentEmail(
 
     await resend.emails.send({
       from: FROM,
-      to: userEmail,
+      to: resolveRecipient(userEmail),
       subject: `📌 Fuiste asignado al proyecto "${projectName}"`,
       html: buildAssignmentEmail({ userName, projectName, role }),
     });
@@ -60,7 +69,7 @@ export async function sendBlockerAlertEmail(
 
     await resend.emails.send({
       from: FROM,
-      to: techLeadEmail,
+      to: resolveRecipient(techLeadEmail),
       subject: `⚠️ Bloqueador crítico en "${projectName}"`,
       html: buildBlockerEmail({
         techLeadName,

@@ -1,5 +1,6 @@
 import { revalidateTag } from 'next/cache';
 import { prisma } from '@/lib/db';
+import { sendProjectAssignmentEmail } from '@/lib/services/email.service';
 import type { CreateProjectDto, UpdateProjectDto, AssignMemberDto } from '@/lib/validators/project.schema';
 
 export const projectService = {
@@ -62,7 +63,7 @@ export const projectService = {
 
   async assignMember(projectId: string, data: AssignMemberDto) {
     // Transacción: UPSERT de membresía + notificación atómica
-    const { membership, project } = await prisma.$transaction(async (tx) => {
+    const { membership, project, userEmail, userName } = await prisma.$transaction(async (tx) => {
       const m = await tx.projectUser.upsert({
         where: { userId_projectId: { userId: data.userId, projectId } },
         create: { projectId, userId: data.userId, isTechLead: data.isTechLead },
@@ -71,6 +72,10 @@ export const projectService = {
       const p = await tx.project.findUniqueOrThrow({
         where: { id: projectId },
         select: { name: true },
+      });
+      const u = await tx.user.findUniqueOrThrow({
+        where: { id: data.userId },
+        select: { email: true, name: true },
       });
       await tx.notification.create({
         data: {
@@ -82,11 +87,11 @@ export const projectService = {
           metadata: { projectName: p.name, isTechLead: data.isTechLead },
         },
       });
-      return { membership: m, project: p };
+      return { membership: m, project: p, userEmail: u.email, userName: u.name };
     });
 
-    // Email de asignación se envía FUERA de la transacción (Fase 5 - NOTIF-03)
-    // await emailService.sendProjectAssignmentEmail(...)
+    // Email FUERA de la transacción — fallo silencioso no revierte la asignación
+    void sendProjectAssignmentEmail(userEmail, userName ?? userEmail, project.name, data.isTechLead);
 
     return { ...membership, projectName: project.name };
   },

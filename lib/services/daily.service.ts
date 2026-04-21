@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { toUTCDayStart, isSameLocalDay } from '@/lib/helpers/dates';
 import { notificationService } from '@/lib/services/notification.service';
+import { sendBlockerAlertEmail } from '@/lib/services/email.service';
 import type { CreateDailyDto } from '@/lib/validators/daily.schema';
 
 export const dailyService = {
@@ -59,8 +60,24 @@ export const dailyService = {
         return d;
       });
 
-      // Email de alerta al Tech Lead FUERA de la transacción (Fase 5 - NOTIF-03)
-      // await emailService.sendBlockerAlertEmail(...)
+      // Email al Tech Lead FUERA de la transacción — fallo silencioso
+      const techLead = await prisma.projectUser.findFirst({
+        where: { projectId: data.projectId, isTechLead: true },
+        include: { user: { select: { email: true, name: true } } },
+      });
+      if (techLead) {
+        const project = await prisma.project.findUnique({
+          where: { id: data.projectId },
+          select: { name: true },
+        });
+        void sendBlockerAlertEmail(
+          techLead.user.email,
+          techLead.user.name ?? techLead.user.email,
+          project?.name ?? data.projectId,
+          reporterName,
+          data.blockers!,
+        );
+      }
 
       return daily;
     }
