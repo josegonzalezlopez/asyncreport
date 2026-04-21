@@ -90,7 +90,7 @@ export function registerReport(program: Command) {
           projectId = resolved.id;
           console.log(chalk.dim(`Proyecto: ${formatProjectConfirm(resolved)}`));
         } else {
-          const { selected } = await inquirer.prompt<{ selected: string }>([
+          const { selected } = (await (inquirer.prompt as unknown as (q: unknown) => Promise<{ selected: string }>)([
             {
               type: 'list',
               name: 'selected',
@@ -102,7 +102,7 @@ export function registerReport(program: Command) {
                 short: p.code ?? p.name,
               })),
             },
-          ]);
+          ])) as { selected: string };
           projectId = selected;
           const picked = projects.find((p) => p.id === projectId);
           if (picked) console.log(chalk.dim(`Proyecto: ${formatProjectConfirm(picked)}`));
@@ -117,13 +117,15 @@ export function registerReport(program: Command) {
           return true;
         };
 
-        const answers = await inquirer.prompt<{
+        const answers = (await (inquirer.prompt as unknown as (
+          q: unknown,
+        ) => Promise<{
           yesterday: string;
           today: string;
           isBlocker: boolean;
           blockers?: string;
           mood: number;
-        }>([
+        }>)([
           {
             type: 'input',
             name: 'yesterday',
@@ -160,7 +162,13 @@ export function registerReport(program: Command) {
             default: 3,
             when: !opts.mood,
           },
-        ]);
+        ])) as {
+          yesterday: string;
+          today: string;
+          isBlocker: boolean;
+          blockers?: string;
+          mood: number;
+        };
 
         const payload = {
           projectId,

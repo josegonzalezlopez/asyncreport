@@ -36,21 +36,29 @@ export function writeConfig(config: Partial<CliConfig>) {
 
 export function getRequiredConfig(): CliConfig {
   const config = readConfig();
+  // Prioridad para CI/e2e: variables de entorno sobre config local
+  const envApiKey = process.env.ASYNCREPORT_API_KEY?.trim();
+  const envBaseUrl = process.env.ASYNCREPORT_BASE_URL?.trim();
+  const resolved = {
+    ...config,
+    ...(envApiKey ? { apiKey: envApiKey } : {}),
+    ...(envBaseUrl ? { baseUrl: envBaseUrl } : {}),
+  } as Partial<CliConfig>;
 
-  if (!config.apiKey) {
+  if (!resolved.apiKey) {
     console.error(
       '\x1b[31mError:\x1b[0m No hay API Key configurada. Ejecuta:\n  npx asyncreport login',
     );
     process.exit(1);
   }
-  if (!config.baseUrl) {
+  if (!resolved.baseUrl) {
     console.error(
       '\x1b[31mError:\x1b[0m No hay URL configurada. Ejecuta:\n  npx asyncreport login',
     );
     process.exit(1);
   }
 
-  return config as CliConfig;
+  return resolved as CliConfig;
 }
 
 export function clearConfig() {

@@ -92,6 +92,19 @@ npm run dev
 
 Luego abre `http://localhost:3000` y prueba `GET /api/health`.
 
+### Testing automatizado
+
+```bash
+npm test                # Vitest (unit/integration)
+npm run test:cli        # subset CLI
+npm run test:e2e:install
+npm run test:e2e        # Playwright (web/api/cli smoke)
+```
+
+Escenarios completos y guía detallada:
+- `docs/TESTING_SETUP.md`
+- `docs/TEST_SCENARIOS.md`
+
 ---
 
 ### IA-augmented (recomendación práctica)

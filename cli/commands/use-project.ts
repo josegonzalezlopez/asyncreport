@@ -54,7 +54,7 @@ export function registerUseProject(program: Command) {
         chosenId = resolved.id;
         console.log(chalk.dim(`Seleccionado: ${formatProjectConfirm(resolved)}`));
       } else {
-        const { selected } = await inquirer.prompt<{ selected: string }>([
+        const { selected } = (await (inquirer.prompt as unknown as (q: unknown) => Promise<{ selected: string }>)([
           {
             type: 'list',
             name: 'selected',
@@ -66,7 +66,7 @@ export function registerUseProject(program: Command) {
               short: p.code ?? p.name,
             })),
           },
-        ]);
+        ])) as { selected: string };
         chosenId = selected;
         const p = projects.find((x) => x.id === chosenId);
         if (p) console.log(chalk.dim(`Guardando: ${formatProjectConfirm(p)}`));

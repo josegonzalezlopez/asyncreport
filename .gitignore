@@ -2,9 +2,13 @@
 node_modules
 .next
 .env
+.env.e2e
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 build
 dist
+playwright-report
+test-results
+.auth
