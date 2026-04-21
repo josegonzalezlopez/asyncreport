@@ -39,14 +39,36 @@ export function createHttpClient(config: CliConfig) {
     });
 
     if (!res.ok) {
-      const body = json as { error?: string; details?: Record<string, string[]> };
+      const body = json as { error?: string; details?: unknown };
       // Incluir detalles de validación de Zod en el mensaje de error
       let msg = body.error ?? res.statusText;
       if (body.details) {
-        const fields = Object.entries(body.details)
-          .map(([field, errors]) => `  • ${field}: ${(errors as string[]).join(', ')}`)
-          .join('\n');
-        msg += `\n${fields}`;
+        const normalizeErrors = (value: unknown): string[] => {
+          if (Array.isArray(value)) return value.map((item) => String(item));
+          if (typeof value === 'string') return [value];
+          if (value && typeof value === 'object') {
+            return Object.values(value as Record<string, unknown>).flatMap(normalizeErrors);
+          }
+          return [];
+        };
+
+        const detailsRecord =
+          typeof body.details === 'object' && body.details !== null
+            ? (body.details as Record<string, unknown>)
+            : null;
+
+        if (detailsRecord) {
+          const fields = Object.entries(detailsRecord)
+            .map(([field, errors]) => {
+              const normalized = normalizeErrors(errors);
+              if (!normalized.length) return null;
+              return `  - ${field}: ${normalized.join(', ')}`;
+            })
+            .filter((line): line is string => line !== null)
+            .join('\n');
+
+          if (fields) msg += `\n${fields}`;
+        }
       }
       throw new ApiError(res.status, msg);
     }

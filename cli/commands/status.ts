@@ -2,12 +2,11 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { getRequiredConfig } from '../utils/config.js';
 import { createHttpClient } from '../utils/http.js';
-
-interface Project {
-  id: string;
-  name: string;
-  code: string | null;
-}
+import {
+  fetchMyProjects,
+  printProjectList,
+  resolveProjectRef,
+} from '../utils/projects.js';
 
 interface DailyReport {
   id: string;
@@ -24,21 +23,39 @@ export function registerStatus(program: Command) {
   program
     .command('status')
     .description('Consulta el estado del reporte de hoy')
-    .option('-p, --project <id>', 'ID del proyecto a consultar')
+    .option('-p, --project <ref>', 'ID o código del proyecto a consultar')
     .action(async (opts: { project?: string }) => {
       const config = getRequiredConfig();
       const client = createHttpClient(config);
 
       try {
+        let projectId: string | undefined;
+        if (opts.project?.trim()) {
+          const projects = await fetchMyProjects(client);
+          const resolved = resolveProjectRef(projects, opts.project);
+          if (!resolved) {
+            console.error(
+              chalk.red(`✖ Proyecto no encontrado: "${opts.project.trim()}"`),
+            );
+            printProjectList(projects);
+            process.exit(1);
+          }
+          projectId = resolved.id;
+        } else if (config.defaultProjectId?.trim()) {
+          const projects = await fetchMyProjects(client);
+          const resolved = resolveProjectRef(projects, config.defaultProjectId);
+          if (resolved) projectId = resolved.id;
+        }
+
         const today = new Date().toISOString().split('T')[0];
 
         const reports = await client.get<DailyReport[]>(
-          `/api/daily?date=${today}${opts.project ? `&projectId=${opts.project}` : ''}`,
+          `/api/daily?date=${today}${projectId ? `&projectId=${projectId}` : ''}`,
         );
 
         if (!Array.isArray(reports) || reports.length === 0) {
           console.log(chalk.yellow(`⚠  Sin reporte para hoy (${today})`));
-          console.log(chalk.dim('  Ejecuta: npx asyncreport report'));
+          console.log(chalk.dim('  Ejecuta: npm run cli -- report'));
           return;
         }
 
@@ -65,19 +82,14 @@ export function registerStatus(program: Command) {
       const client = createHttpClient(config);
 
       try {
-        const projects = await client.get<Project[]>('/api/projects/my');
+        const projects = await fetchMyProjects(client);
 
         if (!Array.isArray(projects) || projects.length === 0) {
           console.log(chalk.yellow('No estás asignado a ningún proyecto.'));
           return;
         }
 
-        console.log(chalk.bold('\nTus proyectos:\n'));
-        projects.forEach((p) => {
-          const code = p.code ? chalk.cyan(` [${p.code}]`) : '';
-          console.log(`  ${chalk.bold(p.id)}${code}  ${p.name}`);
-        });
-        console.log('');
+        printProjectList(projects);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(chalk.red(`✖ ${msg}`));

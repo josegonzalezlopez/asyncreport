@@ -1,10 +1,15 @@
-import { getAuthContext } from '@/lib/helpers/auth';
+import { getAuthContext, requireRole } from '@/lib/helpers/auth';
 import { dailyService } from '@/lib/services/daily.service';
 import { createDailySchema } from '@/lib/validators/daily.schema';
 import { successResponse, errorResponse } from '@/lib/helpers/api-response';
 import { handleApiError } from '@/lib/helpers/handle-error';
 import { prisma } from '@/lib/db';
 import { toUTCDayStart } from '@/lib/helpers/dates';
+import { z } from 'zod';
+
+const createDailyFromCliSchema = createDailySchema.extend({
+  asUserEmail: z.string().email('Email inválido').optional(),
+});
 
 /**
  * POST /api/daily
@@ -17,21 +22,42 @@ export async function POST(req: Request) {
     if (!ctx) return errorResponse('Unauthorized', 401);
 
     const body: unknown = await req.json();
-    const parsed = createDailySchema.safeParse(body);
+    const parsed = createDailyFromCliSchema.safeParse(body);
     if (!parsed.success) {
-      return errorResponse('Validation error', 400, parsed.error.flatten());
+      return errorResponse('Validation error', 400, parsed.error.flatten().fieldErrors);
+    }
+
+    const { asUserEmail, ...dailyData } = parsed.data;
+    let targetUserId = ctx.dbUserId;
+
+    // Solo ADMIN puede reportar en nombre de otro usuario.
+    if (asUserEmail) {
+      if (!requireRole(ctx, 'ADMIN')) {
+        return errorResponse('Forbidden: solo ADMIN puede usar --as-user', 403);
+      }
+
+      const target = await prisma.user.findUnique({
+        where: { email: asUserEmail },
+        select: { id: true },
+      });
+
+      if (!target) {
+        return errorResponse('Usuario destino no encontrado', 404);
+      }
+
+      targetUserId = target.id;
     }
 
     const canReport = await dailyService.canUserReport(
-      ctx.dbUserId,
-      parsed.data.projectId,
-      parsed.data.userTimezone,
+      targetUserId,
+      dailyData.projectId,
+      dailyData.userTimezone,
     );
     if (!canReport) {
       return errorResponse('Ya enviaste un reporte hoy para este proyecto', 409);
     }
 
-    const daily = await dailyService.create(ctx.dbUserId, parsed.data);
+    const daily = await dailyService.create(targetUserId, dailyData);
     return successResponse(daily, 201, 'Reporte enviado');
   } catch (err) {
     return handleApiError(err);

@@ -1,4 +1,4 @@
-import { getAuthContext, requireRole } from '@/lib/helpers/auth';
+import { getAuthContext } from '@/lib/helpers/auth';
 import { successResponse, errorResponse } from '@/lib/helpers/api-response';
 import { handleApiError } from '@/lib/helpers/handle-error';
 import { prisma } from '@/lib/db';
@@ -13,16 +13,8 @@ export async function GET() {
     const ctx = await getAuthContext();
     if (!ctx) return errorResponse('Unauthorized', 401);
 
-    // ADMIN puede ver todos los proyectos
-    if (requireRole(ctx, 'ADMIN')) {
-      const projects = await prisma.project.findMany({
-        where: { status: 'ACTIVE' },
-        select: { id: true, name: true, code: true, status: true },
-        orderBy: { name: 'asc' },
-      });
-      return successResponse(projects);
-    }
-
+    // "my" debe representar únicamente proyectos donde el usuario es miembro.
+    // Si un ADMIN necesita listar todos, debe usar un endpoint distinto.
     const memberships = await prisma.projectUser.findMany({
       where: { userId: ctx.dbUserId },
       include: {
