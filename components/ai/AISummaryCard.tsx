@@ -11,7 +11,7 @@ interface AISummaryCardProps {
     content: string;
     summaryDate: string | Date | null;
     tokenCount: number | null;
-    generatedBy: { name: string } | null;
+    generatedBy: { name: string | null } | null;
   };
   isLatest?: boolean;
   isCollapsed?: boolean;
@@ -114,7 +114,7 @@ export function AISummaryCard({
             </span>
             {summary.generatedBy && (
               <span className="text-muted-foreground">
-                por {summary.generatedBy.name}
+                por {summary.generatedBy.name ?? 'Sistema'}
               </span>
             )}
           </div>

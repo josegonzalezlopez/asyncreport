@@ -1,6 +1,6 @@
 # AsyncReport — Análisis Integral del Proyecto
 
-> **Versión:** 1.1 | **Fecha:** 16 Abril 2026 | **Generado por:** Cursor AI
+> **Versión:** 1.3 | **Fecha:** 21 Abril 2026 | **Generado por:** Cursor AI
 
 ---
 
@@ -13,20 +13,20 @@
 5. [Gaps críticos identificados y resueltos](#5-gaps-críticos-identificados-y-resueltos)
 6. [Viabilidad del plan](#6-viabilidad-del-plan)
 7. [Arquitectura del sistema](#7-arquitectura-del-sistema)
-8. [Roadmap completo post-correcciones](#8-roadmap-completo-post-correcciones)
+8. [Roadmap completo](#8-roadmap-completo)
 
 ---
 
 ## 1. Visión Global de la App
 
-**AsyncReport** es un SaaS de dailies asíncronas para equipos de software distribuidos en distintas zonas horarias. Su objetivo es eliminar las standups síncronas reemplazándolas con un portal centralizado de reportes diarios, análisis ejecutivo con IA (Gemini) y un sistema de notificaciones internas y por email.
+**AsyncReport** es un SaaS de dailies asíncronas para equipos de software distribuidos en distintas zonas horarias. Su objetivo es eliminar las standups síncronas reemplazándolas con un portal centralizado de reportes diarios, análisis ejecutivo con IA (Gemini / Ollama) y un sistema de notificaciones internas y por email.
 
 ### Roles
 
 | Rol | Responsabilidades principales |
 |-----|-------------------------------|
 | **Usuario (Reportador)** | Carga su daily (Ayer / Hoy / Bloqueadores / Mood 1-5), ve el feed del equipo, puede usar CLI para reportar desde la terminal |
-| **Tech Lead** | Recibe alertas de bloqueadores, genera AI Summary bajo demanda, ve MoodChart de los últimos 7 días |
+| **Tech Lead** | Recibe alertas de bloqueadores (notificación interna + email), genera AI Summary bajo demanda con polling, consulta historial |
 | **Administrador** | CRUD de proyectos, asignación de miembros y TLs, dashboard macro con métricas cacheadas |
 
 ### Flujos principales
@@ -41,12 +41,12 @@
 **Tech Lead:**
 1. Ver progreso de reportes del día
 2. Recibir alertas de bloqueadores (notificación interna + email)
-3. Generar AI Summary → 202 Accepted → polling de status
+3. Generar AI Summary → 202 Accepted → polling de status cada 2s
 4. Consultar historial de resúmenes
 
 **Admin:**
 1. CRUD de proyectos con estados (ACTIVE / PAUSED / FINISHED / ARCHIVED)
-2. Asignación de Tech Leads y miembros
+2. Asignación de Tech Leads y miembros (con notificación + email automático)
 3. Dashboard macro con métricas cacheadas (unstable_cache, revalidación 5 min)
 
 ### Integraciones externas
@@ -55,7 +55,8 @@
 |----------|-----|
 | Supabase | PostgreSQL hosted + Pgbouncer pooler |
 | Clerk | Auth, OAuth Google, sesiones, webhooks |
-| Gemini 2.0 Flash | Resúmenes ejecutivos (patrón async) |
+| Gemini 2.0 Flash | Resúmenes ejecutivos (patrón async 202) |
+| Ollama | Alternativa local sin cuota (qwen2.5:7b, llama3.2, etc.) |
 | Resend | Emails transaccionales (asignación + bloqueador) |
 | Vercel | Deploy serverless (Hobby plan con patrón 202) |
 | Svix | Verificación de firma de webhooks Clerk |
@@ -64,169 +65,164 @@
 
 ## 2. Stack Tecnológico
 
-| Capa | Tecnología | Versión (lockfile) | Estado |
-|------|------------|-------------------|--------|
-| Framework | Next.js App Router | **16.1.6** | Activo |
-| UI Runtime | React | 19.2.4 | Activo |
-| Lenguaje | TypeScript | 5.9.3 | Activo — `strict: true` |
-| ORM | Prisma | 7.4.0 | Schema listo, sin uso en rutas |
-| Auth | Clerk Next.js | 6.37.4 | Instalado, sin implementar |
-| Validación | Zod | 4.3.6 | Instalado, sin implementar |
-| IA | @google/generative-ai | latest | Instalado, sin implementar |
-| Email | Resend | latest | Instalado, sin implementar |
-| Estilos | Tailwind CSS + shadcn/ui | — | Activo |
-| Animaciones | Framer Motion | latest | Instalado, **sin uso** |
-
-> **Nota:** Varias dependencias están declaradas como `"latest"` en `package.json`. La reproducibilidad depende del lockfile. Fijar versiones semánticas (ej: `"^16.x"`) es una mejora de mantenibilidad pendiente.
+| Capa | Tecnología | Versión | Estado |
+|------|------------|---------|--------|
+| Framework | Next.js App Router | **16.1.6** | ✅ Activo |
+| UI Runtime | React | 19.2.4 | ✅ Activo |
+| Lenguaje | TypeScript | 5.9.3 | ✅ Activo — `strict: true` |
+| ORM | Prisma | 7.4.0 | ✅ Schema migrado, adapter-pg |
+| Auth | Clerk Next.js | 6.x | ✅ Implementado + JIT provisioning |
+| Validación | Zod | 4.x | ✅ v4 API (campo `error`) |
+| IA | @google/generative-ai | latest | ✅ Con abstracción multi-proveedor |
+| Email | Resend | latest | ✅ Templates HTML dark-mode |
+| Testing | Vitest | 4.x | ✅ 48/48 tests pasando |
+| Estilos | Tailwind CSS + shadcn/ui | — | ✅ Activo |
+| Fechas | date-fns + date-fns-tz | latest | ✅ Timezone-aware |
+| Forms | react-hook-form + @hookform/resolvers | latest | ✅ Activo |
 
 ---
 
 ## 3. Estado actual del código
 
-### Lo implementado
+### Fases completadas
 
-| Archivo | Estado | Nota |
-|---------|--------|------|
-| `app/api/health/route.ts` | ✅ Correcto | Único endpoint. Ruta delgada → `getHealth()` en service |
-| `lib/services/health.service.ts` | ✅ Correcto | Service pattern establecido |
-| `lib/db.ts` | ✅ Correcto | Singleton Prisma con `globalThis` (HMR-safe) |
-| `prisma/schema.prisma` | ✅ Completo | Modelos: User, Project, ProjectUser, DailyReport, Notification, AISummary |
-| `components/ui/` | ✅ Instalados | shadcn/ui con Radix + CVA |
-| `app/page.tsx` | ⚠️ Mejorable | `"use client"` innecesario (sin hooks). Formulario sin lógica real. Links a `#` |
+#### ✅ Fase 1A — Infraestructura base
+- `app/page.tsx` — Landing como RSC puro, links reales a `/sign-in` y `/sign-up`
+- `lib/helpers/api-response.ts` — `successResponse` / `errorResponse` estandarizados
+- `lib/helpers/logger.ts` — logs JSON estructurados
+- `lib/helpers/handle-error.ts` — mapeo Zod/Prisma/negocio a códigos HTTP
+- `lib/helpers/dates.ts` — `toUTCDayStart`, `isSameLocalDay`, `formatLocalDate` (date-fns-tz)
+- `vitest.config.ts` + `vitest.setup.ts` — mock global de Prisma
+- `prisma/schema.prisma` — modelos completos con enums `AISummaryStatus`, `NotificationType`
+- `lib/db.ts` — singleton con `@prisma/adapter-pg` (Prisma 7)
+- `prisma.config.ts` — carga `.env.local` explícita para CLI de Prisma
+- Tests: `dates.test.ts`, `api-response.test.ts`
 
-### Deuda técnica detectada
+#### ✅ Fase 1B — Autenticación
+- `proxy.ts` — `clerkMiddleware` con `auth.protect()`, matcher oficial
+- `app/layout.tsx` — `ClerkProvider` con tema dark personalizado
+- `lib/helpers/auth.ts` — `getAuthContext`, `requireRole`
+- `lib/services/user.service.ts` — `syncFromClerk`, soft-delete, CRUD
+- `app/api/webhooks/clerk/route.ts` — Svix signature verification
+- `app/(auth)/` — sign-in, sign-up, onboarding (especialización)
+- `app/(dashboard)/layout.tsx` — JIT provisioning si el usuario no está en DB
+- `components/layout/sidebar.tsx` — navegación por rol
+- Tests: `auth.test.ts` (8 tests)
 
-- `"use client"` en `app/page.tsx` sin necesidad — toda la landing puede ser RSC
-- Formulario de registro con `type="button"` sin `action` ni `fetch`
-- Links de "Iniciar Sesión" apuntando a `#`
-- Inputs nativos en la landing en lugar de los componentes `Input`/`Button` de shadcn
-- `framer-motion` y otras librerías instaladas sin uso en ningún `.ts`/`.tsx`
+#### ✅ Fase 2 — Gestión de Proyectos (Admin)
+- `lib/validators/project.schema.ts` — Zod v4 (createProject, updateProject, assignMember)
+- `lib/services/project.service.ts` — CRUD, soft-delete, assignMember con transacción atómica + notificación + email
+- `lib/services/dashboard.service.ts` — `getDashboardMetrics` con `unstable_cache` (5 min)
+- API routes: `GET|POST /api/projects`, `GET|PATCH|DELETE /api/projects/[id]`, `POST|DELETE /api/projects/[id]/members`, `GET /api/users`
+- Páginas: `/dashboard/admin`, `/dashboard/admin/projects`, `/dashboard/admin/projects/[id]`
+- Componentes: `ProjectTable`, `CreateProjectDialog`, `EditProjectSheet`, `ProjectStatusBadge`, `ManageMembersPanel`
+- Tests: `project.service.test.ts` (6 tests)
+
+#### ✅ Fase 3 — Dailies Core
+- `lib/validators/daily.schema.ts` — Zod v4 con `userTimezone`
+- `lib/services/daily.service.ts` — `create` (transacción atómica para bloqueadores + notificación al TL + email), `canUserReport` (timezone-aware), `findByProject` (cursor-based pagination), `findByUser`, `findById`
+- API routes: `POST|GET /api/daily-reports`, `GET /api/projects/[id]/daily-reports`
+- Páginas: `/dashboard/dailies`, `/dashboard/team`
+- Componentes: `CreateDailyForm`, `MoodSelector`, `DailyCard`
+- Tests: `daily.service.test.ts` (7 tests)
+
+#### ✅ Fase 4 — Inteligencia Artificial
+- `lib/helpers/sanitize.ts` — `sanitizeForAI()`: JWT, API keys, connection strings, emails
+- `lib/helpers/prompts.ts` — `buildDailySummaryPrompt()` con 6 elementos estructurales, salida en markdown
+- `lib/helpers/constants.ts` — `MAX_DAILY_SUMMARIES=5`, intervalos de polling
+- `lib/helpers/ai-provider.ts` — **abstracción multi-proveedor**: Gemini (producción) y Ollama (desarrollo local sin cuota)
+  - Retry automático con backoff para rate-limit por minuto de Gemini
+  - Detección de cuota diaria agotada (no reintenta en ese caso)
+- `lib/services/ai.service.ts` — `initiateSummary` + `processInBackground` (patrón 202 Accepted)
+- API routes: `POST /api/ai-summary` (202), `GET /api/ai-summary`, `GET /api/ai-summary/status/[id]`
+- Componentes: `GenerateSummaryButton` (polling + skeleton animado), `AISummaryCard` (markdown renderer propio)
+- Página `/dashboard/ai-summary` con tabs por proyecto e historial
+- Tests: `sanitize.test.ts` (8 tests)
+
+#### ✅ Fase 5 — Notificaciones, Emails y Perfil
+- `lib/services/notification.service.ts` — `create`, `findByUser` (cursor-based), `markAsRead` (ownership check), `markAllAsRead`, `countUnread`, `notifyBlockerInTx`, `notifyAISummaryInTx`
+- Integración atómica en 3 servicios:
+  - `project.service.assignMember` → `ProjectUser + Notification` en transacción → `sendProjectAssignmentEmail` fuera
+  - `daily.service.create` → `DailyReport + Notification al TL` en transacción → `sendBlockerAlertEmail` fuera
+  - `ai.service.processInBackground` → `AISummary COMPLETED + Notification` en transacción
+- API routes: `GET /api/notifications`, `GET /api/notifications/unread-count`, `PATCH /api/notifications/read-all`, `PATCH /api/notifications/[id]/read`
+- `lib/services/email.service.ts` — `sendProjectAssignmentEmail`, `sendBlockerAlertEmail`, templates HTML dark-mode, `RESEND_DEV_OVERRIDE_TO` para desarrollo
+- Componentes: `NotificationBell` (polling 30s + Page Visibility API, badge), `NotificationList` (iconos por tipo, tiempo relativo en español, navegación contextual)
+- `app/api/users/me/route.ts` — `GET` (perfil + proyectos), `PATCH` (nombre + especialización, role protegido)
+- `app/(dashboard)/dashboard/profile/page.tsx` — avatar (Next.js Image), proyectos, `EditProfileForm`
+- `next.config.mjs` — dominios `img.clerk.com` y `lh3.googleusercontent.com` habilitados
+
+### Cobertura de tests
+
+| Archivo | Tests | Estado |
+|---------|-------|--------|
+| `dates.test.ts` | 8 | ✅ |
+| `api-response.test.ts` | 6 | ✅ |
+| `auth.test.ts` | 8 | ✅ |
+| `sanitize.test.ts` | 8 | ✅ |
+| `project.service.test.ts` | 6 | ✅ |
+| `daily.service.test.ts` | 7 | ✅ |
+| `ai.service.test.ts` (pendiente) | — | ⏳ |
+| **Total** | **48/48** | **✅ 0 fallos** |
 
 ---
 
 ## 4. Coherencia: Definición vs Plan
 
-**Resultado: Alta coherencia global.** 9 puntos perfectamente alineados y 4 divergencias detectadas, todas resueltas.
+**Resultado: Alta coherencia global.** Divergencias detectadas en versión 1.0 todas resueltas.
 
-### Puntos alineados
-
-| Definición (sección) | Plan (tarea) |
-|---------------------|--------------|
-| Schema Prisma (sec. 6) | BACK-01 |
-| RBAC + Middleware (sec. 8.A) | AUTH-01, AUTH-03 |
-| Webhook Clerk sync (sec. 8.A) | AUTH-02 |
-| Service Pattern (sec. 5) | BACK-03 |
-| Zod en cada API Route (sec. 8.B) | BACK-07 |
-| `unstable_cache` dashboard Admin (sec. 9.C) | BACK-05 |
-| Sanitización para IA (sec. 8.B) | AI-04 |
-| Emails Resend (sec. 4.B) | NOTIF-03 |
-| Error handling estandarizado (sec. 9.B) | BACK-07 |
-
-### Divergencias resueltas
-
-| Divergencia | Problema | Resolución |
-|-------------|---------|------------|
-| Versión Next.js | Docs decían "15", lockfile tenía 16 | Ambos documentos actualizados a **Next.js 16+** |
-| Sección 5 incompleta | `"Seguridad y:"` sin terminar | Completada con 4 estándares (SC/API Route, TS strict, testing, UTC) |
-| CLI sin especificación | Frase ambigua sin flujo técnico | Especificado con auth por API Key, comandos y plataformas |
-| RLS descartado | Definición lo menciona como recomendación | Divergencia **justificada y documentada** en PERF-01: Prisma conecta como superusuario postgres que omite RLS |
+| Divergencia | Resolución |
+|-------------|------------|
+| Next.js 15 vs 16 | Ambos documentos actualizados a **16+** |
+| Sección 5 incompleta ("Seguridad y:") | Completada con 4 estándares |
+| CLI sin especificación técnica | Especificado en Fase 6 con auth por API Key |
+| RLS mencionado sin decisión | Documentado como descartado: Prisma como superusuario omite RLS |
 
 ---
 
 ## 5. Gaps críticos identificados y resueltos
 
-### Gap 1 — Sin tests en el plan original
+### Gap 1 — Sin tests ✅ Resuelto
+Vitest + mock global de Prisma + 48 tests cubriendo servicios críticos.
 
-**Riesgo:** Los servicios de dominio tienen lógica crítica (atomicidad, RBAC, detección de bloqueadores). Sin tests, cada refactor es un riesgo ciego.
+### Gap 2 — CLI ausente del plan ✅ En plan (Fase 6)
+`SETUP-06` (API Keys SHA-256) + `BACK-09` (Commander.js + Inquirer). Pendiente de implementar.
 
-**Solución implementada:**
-- `[TEST-01]` — Vitest + mock global de Prisma + scripts `test/watch/coverage`
-- `[TEST-02]` — Tests obligatorios paralelos a cada tarea BACK-XX
+### Gap 3 — Zonas horarias ✅ Resuelto
+`date-fns-tz` + `toUTCDayStart` + `userTimezone` en DTO. `canUserReport` es timezone-aware.
 
-Tests mínimos obligatorios por módulo:
+### Gap 4 — Timeout Vercel Hobby vs Gemini ✅ Resuelto
+Patrón 202 Accepted + `after()` de Next.js 16 + polling del cliente cada 2s.
 
-| Archivo de test | Casos críticos |
-|----------------|----------------|
-| `sanitize.test.ts` | JWT, API keys, connection strings, idempotencia — **100% cobertura** |
-| `daily.service.test.ts` | `canUserReport`, `isBlocker`, pertenencia al proyecto |
-| `auth.test.ts` | `getAuthContext` con Clerk y con API Key, `requireRole` |
-| `project.service.test.ts` | Soft-delete (archive), upsert de assignMember |
-| `api-response.test.ts` | Formato `{ data, message }` y `{ error, code, details }` |
-
----
-
-### Gap 2 — CLI tool ausente del plan
-
-**Riesgo:** Feature documentada en la definición funcional (sec. 4.A) sin ninguna tarea planificada.
-
-**Solución implementada:**
-- `[SETUP-06]` — Sistema de API Keys con hash SHA-256 (patrón GitHub PAT: token en claro solo al crear, nunca almacenado)
-- `[BACK-09]` — CLI con Commander.js + Inquirer. Comandos: `report` (flujo interactivo), `login` (guarda API Key en `~/.asyncreport/config.json`), `status`
-- `getAuthContext` ampliado para soportar autenticación dual: sesión Clerk (web) + Bearer token (CLI)
-
----
-
-### Gap 3 — Zonas horarias no manejadas
-
-**Riesgo:** Para equipos en distintas zonas horarias, `canUserReport` podría bloquear a un usuario de UTC+9 que reporta a las 23:00 porque en UTC ya es el día siguiente.
-
-**Solución implementada:**
-- `[SETUP-05]` — `date-fns-tz` + `lib/helpers/dates.ts`
-  - `toUTCDayStart(localDateISO, timezone)` — convierte fecha local a 00:00:00 UTC
-  - `isSameLocalDay(utcDate, localDateISO, timezone)` — comparación timezone-aware para `canUserReport`
-- `userTimezone` agregado como campo en `createDailySchema` (el cliente envía `Intl.DateTimeFormat().resolvedOptions().timeZone`)
-- Tests con casos límite: UTC+9 (antes de medianoche UTC), UTC-5 (después de medianoche UTC), UTC+0
-
----
-
-### Gap 4 — Timeout de Vercel Hobby (10s) vs Gemini (5-15s)
-
-**Riesgo:** El AI Summary, diferenciador principal del producto, fallaría sistemáticamente en producción en el plan Hobby.
-
-**Solución implementada:**
-- `[AI-05]` — Patrón **202 Accepted + polling de status**
-  - `POST /api/ai-summary` → crea `AISummary` con `status: PENDING` → retorna 202 + summaryId inmediatamente
-  - `waitUntil()` lanza la generación en background sin bloquear el slot HTTP
-  - `GET /api/ai-summary/status/:id` retorna el estado (PENDING / PROCESSING / COMPLETED / FAILED)
-  - El componente `GenerateSummaryButton` hace polling cada 2s hasta `COMPLETED`
-- **Rate limiting**: máximo 5 resúmenes por proyecto por día → `429 Too Many Requests` con mensaje descriptivo
-- Schema de Prisma actualizado: enum `AISummaryStatus` + campo `errorMessage?`
+### Gap 5 — Cuota gratuita de Gemini ✅ Resuelto
+Abstracción multi-proveedor: `AI_PROVIDER=ollama` para desarrollo local sin cuota. Retry con backoff para errores por minuto. Detección de cuota diaria agotada con mensaje descriptivo.
 
 ---
 
 ## 6. Viabilidad del plan
 
-### Estimación de esfuerzo
+### Estado de implementación por fase
 
-| Fase | Tareas | Dev con perfil descrito | Dev senior Next.js |
-|------|--------|------------------------|-------------------|
-| Fase 1 — Cimientos + Tests | 16 | 4-5 semanas | 1.5-2 semanas |
-| Fase 2 — Admin | 4 | 2-3 semanas | 1 semana |
-| Fase 3 — Dailies Core | 5 | 2-3 semanas | 1-1.5 semanas |
-| Fase 4 — IA + Async | 5 | 2 semanas | 1 semana |
-| Fase 5 — Notif + Deploy | 5 | 2-3 semanas | 1 semana |
-| Fase 6 — CLI | 2 | 1-1.5 semanas | 0.5 semanas |
-| **TOTAL** | **~28** | **13-17 semanas** | **6-7 semanas** |
-
-### Fortalezas del plan
-
-- Nivel de detalle excepcional con criterios de aceptación verificables por tarea
-- Regla arquitectónica SC vs API Route documentada con tabla de escenarios
-- Analogía Angular → Next.js reduce la curva de aprendizaje
-- Patrón `prisma.$transaction` con emails fuera de la transacción (correcto y bien justificado)
-- Cursor-based pagination con `cuid` k-sortable (evita pagination drift)
-- Decisiones técnicas documentadas con justificación (RLS, soft-delete, rol en JWT)
+| Fase | Estado | Observaciones |
+|------|--------|---------------|
+| Fase 1 — Cimientos | ✅ **Completa** | Auth, Prisma, helpers, tests, onboarding |
+| Fase 2 — Admin | ✅ **Completa** | CRUD proyectos, gestión de miembros, dashboard con cache |
+| Fase 3 — Dailies Core | ✅ **Completa** | Feed, formulario, bloqueadores, paginación cursor |
+| Fase 4 — IA | ✅ **Completa** | Gemini + Ollama, 202 Accepted, rate limiting, retry |
+| Fase 5 — Notificaciones | ✅ **Completa** | Campana, emails, perfil, atomicidad en todas las integraciones |
+| Fase 6 — CLI | ⏳ **Pendiente** | API Keys SHA-256 + Commander.js + Inquirer |
+| PERF-02 — Deploy Vercel | ⏳ **Pendiente** | Configuración de variables en Vercel, dominio de Clerk |
 
 ### Riesgos residuales
 
 | Riesgo | Estado |
 |--------|--------|
 | Timeout Vercel Hobby vs Gemini | ✅ Resuelto — patrón 202 Accepted |
-| Sin tests en el plan | ✅ Resuelto — TEST-01 y TEST-02 |
-| CLI sin planificación | ✅ Resuelto — Fase 6 completa |
-| Zonas horarias inconsistentes | ✅ Resuelto — SETUP-05 con date-fns-tz |
-| Fase 1 sobrecargada | ⚠️ Mitigado — recomendación: dividir en 1A (infra) y 1B (auth + base) |
-| Curva de aprendizaje App Router | ℹ️ El propio plan lo mitiga con analogías y reglas explícitas |
+| Sin tests | ✅ Resuelto — 48/48 pasando |
+| CLI sin planificación | ✅ En plan — Fase 6 |
+| Zonas horarias inconsistentes | ✅ Resuelto — date-fns-tz |
+| Cuota gratuita Gemini | ✅ Resuelto — Ollama como fallback local |
+| Dominio de email no verificado | ⚠️ Mitigado — `onboarding@resend.dev` + `RESEND_DEV_OVERRIDE_TO` |
 
 ---
 
@@ -234,111 +230,114 @@ Tests mínimos obligatorios por módulo:
 
 ### Capas del sistema
 
-| Capa | Ubicación | Responsabilidad | Analogía Angular |
-|------|-----------|-----------------|------------------|
-| Edge / Seguridad | `middleware.ts` | Verificar sesión Clerk + rol del JWT antes de cualquier handler | AuthGuard + RoleGuard |
-| Auth dual | `lib/helpers/auth.ts` | `getAuthContext` soporta Clerk (web) y Bearer API Key (CLI) | AuthService con estrategias |
-| Transporte HTTP | `app/api/**/route.ts` | Extraer params, auth, Zod, orquestar service, respuesta estandarizada | Controlador NestJS |
-| Lógica de negocio | `lib/services/*.service.ts` | Queries Prisma, transacciones, reglas de dominio | Injectable Service |
-| Validación de contratos | `lib/validators/*.schema.ts` | Schemas Zod por dominio (incluye `userTimezone`) | DTO con class-validator |
-| Utilidades | `lib/helpers/` | api-response, auth, logger, handle-error, prompts, sanitize, dates, constants | Pipes / Interceptors |
-| Tests | `__tests__/` | Vitest con mock de Prisma. Cobertura en services y helpers críticos | TestBed + Jasmine |
-| Acceso a datos | `lib/prisma.ts` | Singleton con `globalThis` (HMR-safe) | Repository / ORM |
-| UI | `components/` + `app/dashboard/` | RSC para data-fetching, Client Components solo donde hay estado | Componentes standalone |
-| CLI | `cli/` | Commander.js + Inquirer, auth por API Key, detecta timezone del sistema | Angular CLI |
+| Capa | Ubicación | Responsabilidad |
+|------|-----------|-----------------|
+| Edge / Seguridad | `proxy.ts` | Verificar sesión Clerk + rol JWT antes de cualquier handler |
+| Auth dual | `lib/helpers/auth.ts` | `getAuthContext` — Clerk web + Bearer API Key (CLI, Fase 6) |
+| Transporte HTTP | `app/api/**/route.ts` | Extraer params, auth, Zod, orquestar service, respuesta estandarizada |
+| Lógica de negocio | `lib/services/*.service.ts` | Queries Prisma, transacciones, reglas de dominio |
+| Validación | `lib/validators/*.schema.ts` | Schemas Zod v4 por dominio |
+| AI Provider | `lib/helpers/ai-provider.ts` | Abstracción Gemini/Ollama, retry con backoff |
+| Utilidades | `lib/helpers/` | api-response, auth, logger, handle-error, prompts, sanitize, dates, constants |
+| Tests | `__tests__/` | Vitest con mock de Prisma, 48 tests |
+| UI | `components/` + `app/dashboard/` | RSC para data-fetching, Client Components solo con estado |
+| CLI | `cli/` (Fase 6) | Commander.js + Inquirer, auth por API Key |
 
-### Patrón de escritura (mutación)
+### Patrón de escritura (mutación con atomicidad)
 
 ```
-Client Component (formulario)
+Client Component
   → fetch POST /api/daily-reports
   → route.ts: getAuthContext() → Zod.parse(body)
-  → daily.service.create(userId, projectId, data)
+  → daily.service.create(userId, data)
     → verifica pertenencia al proyecto
     → calcula isBlocker
-    → if isBlocker: prisma.$transaction([DailyReport, Notification])
-    → emailService.sendBlockerAlertEmail() ← FUERA de la transacción
+    → if isBlocker:
+        prisma.$transaction([DailyReport + Notification al TL])  ← atómico
+        sendBlockerAlertEmail(techLead)                          ← fuera de tx
   → successResponse(result, 201)
 ```
 
-### Patrón de lectura (query en RSC)
+### Patrón de lectura (Server Components)
 
 ```
 Server Component (page.tsx)
   → import { dailyService } from '@/lib/services/daily.service'
   → await dailyService.findByProject(projectId)  ← SIN pasar por API Route
-  → Renderiza datos en el servidor → zero waterfall de red
+  → Renderiza en servidor → zero waterfall de red
 ```
 
-> **Regla crítica:** Un Server Component NUNCA hace `fetch('/api/...')` a su propia API. Importa el service directamente. Las API Routes son exclusivamente para mutaciones desde Client Components y webhooks externos.
+> **Regla crítica:** Un Server Component NUNCA hace `fetch('/api/...')` a su propia API.
 
-### Patrón AI Summary (202 Accepted)
+### Patrón AI Summary (202 Accepted + polling)
 
 ```
 POST /api/ai-summary
   → Verifica auth + rate limit (max 5/día/proyecto)
   → Crea AISummary { status: PENDING }
-  → Retorna 202 Accepted + summaryId  ← inmediato, sin esperar Gemini
+  → after(() => processInBackground(summaryId))   ← Next.js 16
+  → Retorna 202 Accepted + summaryId              ← inmediato
 
-waitUntil() en background:
+processInBackground():
   → PENDING → PROCESSING
   → sanitizeForAI(reportContent)
-  → Gemini API → resumen en markdown
-  → COMPLETED con contenido
+  → generateAIContent(prompt)   ← Gemini o Ollama según AI_PROVIDER
+  → prisma.$transaction([AISummary COMPLETED + Notification])
 
 Cliente:
   → polling GET /api/ai-summary/status/:id cada 2s
-  → Al recibir COMPLETED → renderiza el markdown
+  → Al recibir COMPLETED → renderiza markdown
 ```
 
 ### Decisiones técnicas destacadas
 
 | Decisión | Justificación |
 |----------|---------------|
-| 202 Accepted para AI Summary | Evita el timeout de 10s de Vercel Hobby sin upgrade a Pro |
-| API Keys con SHA-256 | Patrón GitHub PAT: token solo visible al crear. Hash en DB no permite autenticarse si la DB se compromete |
-| `date-fns-tz` para zonas horarias | Ligera, tree-shakeable, compatible con ESM. Alternativa a moment-timezone (10x más pesada) |
-| Vitest sobre Jest | Compatibilidad nativa con ESM y TypeScript, 2-5x más rápido en cold start |
-| `cuid()` como cursor de paginación | k-sortable y único. Evita pagination drift y colisiones de timestamp |
-| Soft-delete para User y Project | Preserva historial de reportes con valor auditorio |
-| Rol en JWT de Clerk | El middleware lee el rol sin tocar la DB en cada request — crítico para no saturar el pool de Pgbouncer |
-| Email fuera de `prisma.$transaction` | HTTP externo dentro de una transacción bloquea la conexión DB durante el request |
-| RLS descartado deliberadamente | Prisma conecta como superusuario postgres que omite RLS. Documentado en PERF-01 |
+| 202 Accepted para AI Summary | Evita timeout de 10s de Vercel Hobby |
+| Abstracción AI_PROVIDER | Ollama en desarrollo (sin cuota), Gemini en producción, sin cambiar código |
+| Retry con backoff en Gemini | Distinción cuota/minuto (recuperable) vs cuota/día (no reintentar) |
+| API Keys con SHA-256 (Fase 6) | Patrón GitHub PAT: token visible solo al crear |
+| `date-fns-tz` para zonas horarias | Ligera, tree-shakeable, ESM nativo |
+| Vitest sobre Jest | Compatibilidad nativa ESM/TypeScript, 2-5x más rápido |
+| `cuid()` como cursor de paginación | k-sortable, único, sin pagination drift |
+| Soft-delete para User/Project | Preserva historial de reportes |
+| Email fuera de `prisma.$transaction` | HTTP externo dentro de tx bloquea el pool de Pgbouncer |
+| RLS descartado | Prisma conecta como superusuario que omite RLS. Seguridad en middleware + filtros de servicio |
 
 ---
 
-## 8. Roadmap completo post-correcciones
+## 8. Roadmap completo
 
-| Fase | Tareas clave | Prerequisito |
-|------|-------------|--------------|
-| **Fase 1** — Cimientos | SETUP-01/02/03/04/05, BACK-01/02/03, TEST-01/02, AUTH-01/02/03, FRONT-01/02 | — |
-| **Fase 2** — Admin | BACK-04/05, FRONT-03/04 | Fase 1 completa |
-| **Fase 3** — Dailies Core | BACK-06/07/08, FRONT-05/06 | Fase 2 |
-| **Fase 4** — IA | AI-01/02/03/04/05 | Fase 3 |
-| **Fase 5** — Notificaciones + Deploy | NOTIF-01/02/03, PERF-01/02, FRONT-07 | Fase 4 |
-| **Fase 6** — CLI | SETUP-06, BACK-09 | Fase 3 + Fase 5 (auth dual) |
+| Fase | Tareas clave | Estado |
+|------|-------------|--------|
+| **Fase 1** — Cimientos + Auth | SETUP-01-06, BACK-01-03, TEST-01-02, AUTH-01-03, FRONT-01-02 | ✅ Completa |
+| **Fase 2** — Admin | BACK-04-05, FRONT-03-04 | ✅ Completa |
+| **Fase 3** — Dailies Core | BACK-06-08, FRONT-05-06 | ✅ Completa |
+| **Fase 4** — IA | AI-01-05 | ✅ Completa |
+| **Fase 5** — Notificaciones + Perfil | NOTIF-01-03, PERF-01, FRONT-07 | ✅ Completa |
+| **Fase 6** — CLI | SETUP-06 (API Keys), BACK-09 (Commander.js) | ⏳ Pendiente |
+| **PERF-02** — Deploy Vercel | Config variables, dominio Clerk, verify build | ⏳ Pendiente |
 
-### Variables de entorno requeridas
+### Variables de entorno configuradas
 
-| Variable | Servicio |
-|----------|----------|
-| `DATABASE_URL` | Supabase — conexión directa (puerto 5432, para Prisma CLI) |
-| `DIRECT_URL` | Supabase — pooling Pgbouncer (puerto 6543, para runtime) |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk |
-| `CLERK_SECRET_KEY` | Clerk |
-| `CLERK_WEBHOOK_SECRET` | Clerk |
-| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | Clerk |
-| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | Clerk |
-| `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL` | Clerk |
-| `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL` | Clerk |
-| `GEMINI_API_KEY` | Google AI |
-| `RESEND_API_KEY` | Resend |
-| `RESEND_FROM_EMAIL` | Resend |
-| `ASYNCREPORT_API_URL` | CLI (solo en entorno local del desarrollador) |
+| Variable | Servicio | Estado |
+|----------|----------|--------|
+| `DATABASE_URL` | Supabase (puerto 5432, migraciones) | ✅ |
+| `DIRECT_URL` | Supabase Pgbouncer (puerto 6543, runtime) | ✅ |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk | ✅ |
+| `CLERK_SECRET_KEY` | Clerk | ✅ |
+| `CLERK_WEBHOOK_SECRET` | Clerk | ✅ |
+| `AI_PROVIDER` | `ollama` (dev) / `gemini` (prod) | ✅ |
+| `GEMINI_API_KEY` | Google AI Studio | ✅ |
+| `GEMINI_MODEL` | `gemini-2.0-flash` | ✅ |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | ✅ |
+| `OLLAMA_MODEL` | `qwen2.5:7b` | ✅ |
+| `RESEND_API_KEY` | Resend | ✅ |
+| `RESEND_FROM_EMAIL` | `onboarding@resend.dev` (dev) | ✅ |
+| `RESEND_DEV_OVERRIDE_TO` | Email propio para testing | ✅ |
+| `ASYNCREPORT_API_URL` | CLI (Fase 6) | ⏳ |
 
 ---
 
 *Documento generado por análisis de IA a partir del codebase y los documentos de definición del proyecto.*
-*Para mantenerlo actualizado, regenerarlo al completar cada fase del plan.*
+*Versión 1.3 — Fases 1-5 completadas. Pendiente: Fase 6 (CLI) y PERF-02 (Deploy Vercel).*

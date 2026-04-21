@@ -161,8 +161,8 @@ export const aiService = {
         totalMembers,
         reportsCount: reports.length,
         reports: reports.map((r) => ({
-          userName: r.user.name,
-          specialization: r.user.specialization ?? 'N/A',
+          userName: r.user.name ?? 'Miembro del equipo',
+          specialization: String(r.user.specialization ?? 'N/A'),
           yesterday: sanitizeForAI(r.yesterday),
           today: sanitizeForAI(r.today),
           blockers: r.blockers ? sanitizeForAI(r.blockers) : null,

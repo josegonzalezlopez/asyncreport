@@ -1,14 +1,7 @@
 import { prisma } from '@/lib/db';
-import { NotificationType } from '@prisma/client';
+import { NotificationType, Prisma } from '@prisma/client';
 
-interface CreateNotificationInput {
-  userId?: string;
-  projectId?: string;
-  type: NotificationType;
-  title: string;
-  message: string;
-  metadata?: Record<string, unknown>;
-}
+type CreateNotificationInput = Prisma.NotificationUncheckedCreateInput;
 
 export const notificationService = {
   async create(input: CreateNotificationInput) {

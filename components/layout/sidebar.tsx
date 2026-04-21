@@ -81,7 +81,26 @@ export function Sidebar({ userRole }: SidebarProps) {
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <UserButton
             appearance={{
-              elements: { userButtonAvatarBox: 'h-8 w-8' },
+              variables: {
+                colorBackground: 'hsl(222, 84%, 5%)',
+                colorText: 'hsl(210, 40%, 98%)',
+                colorTextSecondary: 'hsl(215, 20%, 65%)',
+                colorNeutral: 'hsl(210, 40%, 98%)',
+                colorPrimary: 'hsl(199, 89%, 48%)',
+                colorInputBackground: 'hsl(217, 33%, 17%)',
+                colorInputText: 'hsl(210, 40%, 98%)',
+                borderRadius: '0.75rem',
+              },
+              elements: {
+                userButtonAvatarBox: 'h-8 w-8',
+                card: 'border border-white/10 shadow-2xl',
+                userPreviewMainIdentifier: 'text-white font-semibold',
+                userPreviewSecondaryIdentifier: 'text-slate-400',
+                menuItem: 'hover:bg-white/5',
+                menuItemText: 'text-slate-200',
+                footerActionText: 'text-slate-500',
+                footerActionLink: 'text-sky-400 hover:text-sky-300',
+              },
             }}
           />
           <Link
