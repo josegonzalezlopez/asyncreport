@@ -14,7 +14,7 @@ export function createHttpClient(config: CliConfig) {
   const baseUrl = config.baseUrl.replace(/\/$/, '');
   const headers = {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${config.apiKey}`,
+    'X-API-Key': config.apiKey,
   };
 
   async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -24,13 +24,34 @@ export function createHttpClient(config: CliConfig) {
       body: body ? JSON.stringify(body) : undefined,
     });
 
-    const json = await res.json().catch(() => ({ error: res.statusText }));
+    // Si hubo redirect (ej. Clerk redirige a /sign-in) la respuesta es HTML, no JSON
+    const contentType = res.headers.get('content-type') ?? '';
+    if (!contentType.includes('application/json')) {
+      throw new ApiError(
+        res.status || 401,
+        `El servidor devolvió ${res.status} (${contentType || 'sin content-type'}). ` +
+          `Verifica que la URL es correcta y que el servidor está corriendo.`,
+      );
+    }
+
+    const json = await res.json().catch(() => {
+      throw new ApiError(res.status, 'No se pudo parsear la respuesta del servidor como JSON.');
+    });
 
     if (!res.ok) {
       throw new ApiError(res.status, (json as { error?: string }).error ?? res.statusText);
     }
 
-    return (json as { data: T }).data;
+    // Validar forma de la respuesta
+    const typed = json as { data?: T; error?: string };
+    if (typed.data === undefined) {
+      throw new ApiError(
+        500,
+        typed.error ?? 'Respuesta inesperada del servidor (sin campo "data").',
+      );
+    }
+
+    return typed.data;
   }
 
   return {

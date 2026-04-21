@@ -8,12 +8,30 @@ import type { AuthContext } from '@/lib/types';
  * Obtiene el contexto de autorización completo para una API Route o Server Action.
  * Soporta doble autenticación:
  *   1. Sesión Clerk (uso web normal).
- *   2. Bearer token en Authorization header (uso desde CLI con API Keys).
+ *   2. X-API-Key header o Bearer token en Authorization (uso desde CLI con API Keys).
+ *
+ * NOTA: usamos `X-API-Key` como header preferente para evitar que Clerk intente
+ * verificar el token como un JWT de Clerk al leer `Authorization: Bearer`.
+ * Si se usa `Authorization: Bearer`, solo se considera cuando Clerk no autentica.
  *
  * Retorna null si el usuario no tiene sesión activa o no existe en la DB.
  */
 export async function getAuthContext(): Promise<AuthContext | null> {
-  // 1. Intentar autenticación vía Clerk
+  const headerStore = await headers();
+
+  // 1. Verificar primero si hay un API Key personalizado (CLI)
+  //    antes de que Clerk intente procesar el header Authorization.
+  const apiKeyHeader = headerStore.get('x-api-key');
+  if (apiKeyHeader) {
+    const dbUserId = await apiKeyService.verify(apiKeyHeader);
+    if (dbUserId) {
+      const user = await userService.findById(dbUserId);
+      if (user) return { clerkUserId: '', dbUserId: user.id, role: user.role };
+    }
+    return null; // API Key presente pero inválida → no continuar con Clerk
+  }
+
+  // 2. Intentar autenticación vía Clerk (sesión web)
   const { userId: clerkUserId } = await auth();
 
   if (clerkUserId) {
@@ -22,8 +40,7 @@ export async function getAuthContext(): Promise<AuthContext | null> {
     return { clerkUserId, dbUserId: user.id, role: user.role };
   }
 
-  // 2. Fallback: Bearer token para CLI
-  const headerStore = await headers();
+  // 3. Fallback: Bearer token (compatibilidad) — solo si Clerk no autenticó
   const authorization = headerStore.get('authorization') ?? '';
   const match = authorization.match(/^Bearer\s+(.+)$/i);
   if (!match) return null;

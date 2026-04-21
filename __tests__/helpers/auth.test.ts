@@ -24,11 +24,16 @@ vi.mock('next/headers', () => ({
 }));
 
 import { auth } from '@clerk/nextjs/server';
+import { headers } from 'next/headers';
 import { userService } from '@/lib/services/user.service';
+import { apiKeyService } from '@/lib/services/apikey.service';
 import { getAuthContext, requireRole } from '@/lib/helpers/auth';
 
 const mockAuth = vi.mocked(auth);
+const mockHeaders = vi.mocked(headers);
 const mockFindByClerkId = vi.mocked(userService.findByClerkId);
+const mockFindById = vi.mocked(userService.findById);
+const mockVerify = vi.mocked(apiKeyService.verify);
 
 const MOCK_USER: User = {
   id: 'db-user-1',
@@ -85,6 +90,31 @@ describe('getAuthContext', () => {
     const ctx = await getAuthContext();
 
     expect(ctx?.role).toBe('ADMIN');
+  });
+
+  it('autentica vía X-API-Key cuando no hay sesión Clerk', async () => {
+    mockHeaders.mockResolvedValue({
+      get: (key: string) => (key === 'x-api-key' ? 'test-api-token' : null),
+    } as never);
+    mockVerify.mockResolvedValue('db-user-1');
+    mockFindById.mockResolvedValue(MOCK_USER);
+
+    const ctx = await getAuthContext();
+
+    expect(ctx).toEqual({ clerkUserId: '', dbUserId: 'db-user-1', role: 'USER' });
+    expect(mockAuth).not.toHaveBeenCalled();
+  });
+
+  it('retorna null si X-API-Key es inválida', async () => {
+    mockHeaders.mockResolvedValue({
+      get: (key: string) => (key === 'x-api-key' ? 'invalid-token' : null),
+    } as never);
+    mockVerify.mockResolvedValue(null);
+
+    const ctx = await getAuthContext();
+
+    expect(ctx).toBeNull();
+    expect(mockAuth).not.toHaveBeenCalled();
   });
 });
 
