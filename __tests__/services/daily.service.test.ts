@@ -14,6 +14,13 @@ vi.mock('@/lib/helpers/dates', () => ({
   isSameLocalDay: vi.fn(() => false),
 }));
 
+// notification.service usa prisma directamente, así que sólo mocking el módulo
+vi.mock('@/lib/services/notification.service', () => ({
+  notificationService: {
+    notifyBlockerInTx: vi.fn().mockResolvedValue({}),
+  },
+}));
+
 import { prisma } from '@/lib/db';
 import { dailyService } from '@/lib/services/daily.service';
 import type { CreateDailyDto } from '@/lib/validators/daily.schema';
@@ -21,6 +28,12 @@ import type { CreateDailyDto } from '@/lib/validators/daily.schema';
 const mockProjectUser = vi.mocked(prisma.projectUser);
 const mockDailyReport = vi.mocked(prisma.dailyReport);
 const mockTransaction = vi.mocked(prisma.$transaction);
+
+/** Membership stub que incluye el nombre del usuario requerido tras el refactor. */
+const MEMBERSHIP_STUB = {
+  id: 'm1',
+  user: { name: 'Jose' },
+} as never;
 
 const BASE_DTO: CreateDailyDto = {
   projectId: 'project-1',
@@ -36,14 +49,12 @@ describe('dailyService.create', () => {
   it('lanza error FORBIDDEN si el usuario no pertenece al proyecto', async () => {
     mockProjectUser.findUnique.mockResolvedValue(null);
 
-    await expect(dailyService.create('user-1', BASE_DTO)).rejects.toThrow(
-      'FORBIDDEN',
-    );
+    await expect(dailyService.create('user-1', BASE_DTO)).rejects.toThrow('FORBIDDEN');
     expect(mockDailyReport.create).not.toHaveBeenCalled();
   });
 
   it('crea el reporte sin transacción cuando no hay bloqueadores', async () => {
-    mockProjectUser.findUnique.mockResolvedValue({ id: 'm1' } as never);
+    mockProjectUser.findUnique.mockResolvedValue(MEMBERSHIP_STUB);
     const fakeDaily = { id: 'd1', isBlocker: false };
     mockDailyReport.create.mockResolvedValue(fakeDaily as never);
 
@@ -57,12 +68,13 @@ describe('dailyService.create', () => {
   });
 
   it('usa transacción atómica cuando hay bloqueadores', async () => {
-    mockProjectUser.findUnique.mockResolvedValue({ id: 'm1' } as never);
+    mockProjectUser.findUnique.mockResolvedValue(MEMBERSHIP_STUB);
     mockTransaction.mockImplementation(async (fn) => {
       const fakeDaily = { id: 'd1', isBlocker: true };
       return fn({
         dailyReport: { create: vi.fn().mockResolvedValue(fakeDaily) },
         notification: { create: vi.fn().mockResolvedValue({}) },
+        projectUser: { findFirst: vi.fn().mockResolvedValue({ userId: 'tl-1' }) },
       } as never);
     });
 
@@ -73,7 +85,7 @@ describe('dailyService.create', () => {
   });
 
   it('calcula isBlocker=true cuando blockers tiene contenido', async () => {
-    mockProjectUser.findUnique.mockResolvedValue({ id: 'm1' } as never);
+    mockProjectUser.findUnique.mockResolvedValue(MEMBERSHIP_STUB);
     mockTransaction.mockImplementation(async (fn) => {
       const fakeDaily = { id: 'd1', isBlocker: true };
       return fn({
@@ -84,17 +96,15 @@ describe('dailyService.create', () => {
           }),
         },
         notification: { create: vi.fn().mockResolvedValue({}) },
+        projectUser: { findFirst: vi.fn().mockResolvedValue(null) },
       } as never);
     });
 
-    await dailyService.create('user-1', {
-      ...BASE_DTO,
-      blockers: '  Tengo un bloqueador  ',
-    });
+    await dailyService.create('user-1', { ...BASE_DTO, blockers: '  Tengo un bloqueador  ' });
   });
 
   it('calcula isBlocker=false cuando blockers está vacío o solo espacios', async () => {
-    mockProjectUser.findUnique.mockResolvedValue({ id: 'm1' } as never);
+    mockProjectUser.findUnique.mockResolvedValue(MEMBERSHIP_STUB);
     mockDailyReport.create.mockResolvedValue({ id: 'd1', isBlocker: false } as never);
 
     await dailyService.create('user-1', { ...BASE_DTO, blockers: '   ' });
@@ -110,11 +120,7 @@ describe('dailyService.canUserReport', () => {
   it('retorna true si no existe reporte para hoy', async () => {
     mockDailyReport.findFirst.mockResolvedValue(null);
 
-    const result = await dailyService.canUserReport(
-      'user-1',
-      'project-1',
-      'UTC',
-    );
+    const result = await dailyService.canUserReport('user-1', 'project-1', 'UTC');
 
     expect(result).toBe(true);
   });
@@ -122,11 +128,7 @@ describe('dailyService.canUserReport', () => {
   it('retorna false si ya existe un reporte para hoy', async () => {
     mockDailyReport.findFirst.mockResolvedValue({ id: 'd1' } as never);
 
-    const result = await dailyService.canUserReport(
-      'user-1',
-      'project-1',
-      'UTC',
-    );
+    const result = await dailyService.canUserReport('user-1', 'project-1', 'UTC');
 
     expect(result).toBe(false);
   });

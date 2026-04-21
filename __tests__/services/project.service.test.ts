@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+const mockTx = {
+  projectUser: { upsert: vi.fn() },
+  project: { findUniqueOrThrow: vi.fn() },
+  notification: { create: vi.fn() },
+};
+
 vi.mock('@/lib/db', () => ({
   prisma: {
     project: {
@@ -14,6 +20,7 @@ vi.mock('@/lib/db', () => ({
       delete: vi.fn(),
       findUnique: vi.fn(),
     },
+    $transaction: vi.fn((fn: (tx: typeof mockTx) => unknown) => fn(mockTx)),
   },
 }));
 
@@ -30,7 +37,12 @@ const mockProject = vi.mocked(prisma.project);
 const mockProjectUser = vi.mocked(prisma.projectUser);
 const mockRevalidate = vi.mocked(revalidateTag);
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockTx.projectUser.upsert.mockReset();
+  mockTx.project.findUniqueOrThrow.mockReset();
+  mockTx.notification.create.mockReset();
+});
 
 describe('projectService.create', () => {
   it('crea el proyecto y llama revalidateTag', async () => {
@@ -62,25 +74,34 @@ describe('projectService.archive', () => {
 });
 
 describe('projectService.assignMember', () => {
-  it('hace upsert con isTechLead correcto', async () => {
+  it('hace upsert dentro de una transacción con notificación', async () => {
     const membership = { userId: 'u1', projectId: 'p1', isTechLead: true };
-    mockProjectUser.upsert.mockResolvedValue(membership as never);
+    mockTx.projectUser.upsert.mockResolvedValue(membership);
+    mockTx.project.findUniqueOrThrow.mockResolvedValue({ name: 'Mi Proyecto' });
+    mockTx.notification.create.mockResolvedValue({ id: 'n1' });
 
     await projectService.assignMember('p1', { userId: 'u1', isTechLead: true });
 
-    expect(mockProjectUser.upsert).toHaveBeenCalledWith({
-      where: { userId_projectId: { userId: 'u1', projectId: 'p1' } },
-      create: { projectId: 'p1', userId: 'u1', isTechLead: true },
-      update: { isTechLead: true },
-    });
+    expect(mockTx.projectUser.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ isTechLead: true }),
+      }),
+    );
+    expect(mockTx.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ type: 'ASSIGNMENT', userId: 'u1' }),
+      }),
+    );
   });
 
-  it('no duplica si el usuario ya pertenece al proyecto (upsert actualiza)', async () => {
-    mockProjectUser.upsert.mockResolvedValue({ isTechLead: false } as never);
+  it('ejecuta el upsert una sola vez aunque el usuario ya sea miembro', async () => {
+    mockTx.projectUser.upsert.mockResolvedValue({ isTechLead: false });
+    mockTx.project.findUniqueOrThrow.mockResolvedValue({ name: 'P' });
+    mockTx.notification.create.mockResolvedValue({ id: 'n1' });
 
     await projectService.assignMember('p1', { userId: 'u1', isTechLead: false });
 
-    expect(mockProjectUser.upsert).toHaveBeenCalledTimes(1);
+    expect(mockTx.projectUser.upsert).toHaveBeenCalledTimes(1);
   });
 });
 

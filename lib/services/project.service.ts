@@ -61,13 +61,34 @@ export const projectService = {
   },
 
   async assignMember(projectId: string, data: AssignMemberDto) {
-    return prisma.projectUser.upsert({
-      where: {
-        userId_projectId: { userId: data.userId, projectId },
-      },
-      create: { projectId, userId: data.userId, isTechLead: data.isTechLead },
-      update: { isTechLead: data.isTechLead },
+    // Transacción: UPSERT de membresía + notificación atómica
+    const { membership, project } = await prisma.$transaction(async (tx) => {
+      const m = await tx.projectUser.upsert({
+        where: { userId_projectId: { userId: data.userId, projectId } },
+        create: { projectId, userId: data.userId, isTechLead: data.isTechLead },
+        update: { isTechLead: data.isTechLead },
+      });
+      const p = await tx.project.findUniqueOrThrow({
+        where: { id: projectId },
+        select: { name: true },
+      });
+      await tx.notification.create({
+        data: {
+          userId: data.userId,
+          projectId,
+          type: 'ASSIGNMENT',
+          title: '📌 Asignado a un proyecto',
+          message: `Fuiste asignado al proyecto "${p.name}" como ${data.isTechLead ? 'Tech Lead' : 'miembro'}.`,
+          metadata: { projectName: p.name, isTechLead: data.isTechLead },
+        },
+      });
+      return { membership: m, project: p };
     });
+
+    // Email de asignación se envía FUERA de la transacción (Fase 5 - NOTIF-03)
+    // await emailService.sendProjectAssignmentEmail(...)
+
+    return { ...membership, projectName: project.name };
   },
 
   async removeMember(projectId: string, userId: string) {

@@ -8,11 +8,11 @@ import {
   FolderKanban,
   FileText,
   Sparkles,
-  Bell,
   Settings,
   Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 interface NavItem {
   href: string;
@@ -27,7 +27,6 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard/dailies', label: 'Mis Dailies', icon: FileText },
   { href: '/dashboard/team', label: 'Equipo', icon: Users, roles: ['TECH_LEAD', 'ADMIN'] },
   { href: '/dashboard/ai-summary', label: 'Resumen IA', icon: Sparkles, roles: ['TECH_LEAD', 'ADMIN'] },
-  { href: '/dashboard/notifications', label: 'Notificaciones', icon: Bell },
   { href: '/dashboard/admin', label: 'Admin', icon: Settings, roles: ['ADMIN'] },
 ];
 
@@ -77,15 +76,27 @@ export function Sidebar({ userRole }: SidebarProps) {
         })}
       </nav>
 
-      {/* Footer con UserButton de Clerk */}
-      <div className="border-t border-border/50 px-4 py-4">
-        <UserButton
-          appearance={{
-            elements: {
-              userButtonAvatarBox: 'h-8 w-8',
-            },
-          }}
-        />
+      {/* Footer con perfil, campana y UserButton */}
+      <div className="border-t border-border/50 px-4 py-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <UserButton
+            appearance={{
+              elements: { userButtonAvatarBox: 'h-8 w-8' },
+            }}
+          />
+          <Link
+            href="/dashboard/profile"
+            className={cn(
+              'text-sm font-medium truncate transition-colors hover:text-foreground',
+              pathname === '/dashboard/profile'
+                ? 'text-primary'
+                : 'text-muted-foreground',
+            )}
+          >
+            Mi perfil
+          </Link>
+        </div>
+        <NotificationBell />
       </div>
     </aside>
   );

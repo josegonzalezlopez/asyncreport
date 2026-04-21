@@ -5,6 +5,7 @@ import { toUTCDayStart } from '@/lib/helpers/dates';
 import { MAX_DAILY_SUMMARIES } from '@/lib/helpers/constants';
 import { logger } from '@/lib/helpers/logger';
 import { generateAIContent } from '@/lib/helpers/ai-provider';
+import { notificationService } from '@/lib/services/notification.service';
 import { AISummaryStatus } from '@prisma/client';
 
 /**
@@ -171,14 +172,27 @@ export const aiService = {
 
       const { content, tokenCount } = await generateAIContent(prompt);
 
-      await prisma.aISummary.update({
-        where: { id: summaryId },
-        data: {
-          status: AISummaryStatus.COMPLETED,
-          content,
-          promptUsed: prompt,
-          tokenCount,
-        },
+      // AISummary COMPLETED + Notification en la misma transacción
+      await prisma.$transaction(async (tx) => {
+        await tx.aISummary.update({
+          where: { id: summaryId },
+          data: {
+            status: AISummaryStatus.COMPLETED,
+            content,
+            promptUsed: prompt,
+            tokenCount,
+          },
+        });
+
+        if (summary.generatedById) {
+          await notificationService.notifyAISummaryInTx(
+            tx,
+            summary.generatedById,
+            summary.projectId,
+            summary.project.name,
+            summaryId,
+          );
+        }
       });
 
       logger.info('AI summary generated', { summaryId, provider, tokenCount });

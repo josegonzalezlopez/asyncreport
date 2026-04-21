@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import { toUTCDayStart, isSameLocalDay } from '@/lib/helpers/dates';
+import { notificationService } from '@/lib/services/notification.service';
 import type { CreateDailyDto } from '@/lib/validators/daily.schema';
 
 export const dailyService = {
@@ -16,6 +17,7 @@ export const dailyService = {
   async create(userId: string, data: CreateDailyDto) {
     const membership = await prisma.projectUser.findUnique({
       where: { userId_projectId: { userId, projectId: data.projectId } },
+      include: { user: { select: { name: true } } },
     });
 
     if (!membership) {
@@ -27,10 +29,11 @@ export const dailyService = {
       new Date().toLocaleDateString('en-CA', { timeZone: data.userTimezone }),
       data.userTimezone,
     );
+    const reporterName = membership.user.name ?? 'Miembro del equipo';
 
     if (isBlocker) {
-      return prisma.$transaction(async (tx) => {
-        const daily = await tx.dailyReport.create({
+      const daily = await prisma.$transaction(async (tx) => {
+        const d = await tx.dailyReport.create({
           data: {
             userId,
             projectId: data.projectId,
@@ -44,18 +47,22 @@ export const dailyService = {
           },
         });
 
-        await tx.notification.create({
-          data: {
-            type: 'BLOCKER_ALERT',
-            title: '⚠️ Bloqueador detectado',
-            message: `${data.blockers}`,
-            projectId: data.projectId,
-            metadata: { dailyReportId: daily.id, userId },
-          },
-        });
+        await notificationService.notifyBlockerInTx(
+          tx,
+          data.projectId,
+          d.id,
+          reporterName,
+          data.blockers!,
+          userId,
+        );
 
-        return daily;
+        return d;
       });
+
+      // Email de alerta al Tech Lead FUERA de la transacción (Fase 5 - NOTIF-03)
+      // await emailService.sendBlockerAlertEmail(...)
+
+      return daily;
     }
 
     return prisma.dailyReport.create({
