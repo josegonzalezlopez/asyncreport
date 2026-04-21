@@ -39,7 +39,16 @@ export function createHttpClient(config: CliConfig) {
     });
 
     if (!res.ok) {
-      throw new ApiError(res.status, (json as { error?: string }).error ?? res.statusText);
+      const body = json as { error?: string; details?: Record<string, string[]> };
+      // Incluir detalles de validación de Zod en el mensaje de error
+      let msg = body.error ?? res.statusText;
+      if (body.details) {
+        const fields = Object.entries(body.details)
+          .map(([field, errors]) => `  • ${field}: ${(errors as string[]).join(', ')}`)
+          .join('\n');
+        msg += `\n${fields}`;
+      }
+      throw new ApiError(res.status, msg);
     }
 
     // Validar forma de la respuesta

@@ -82,6 +82,16 @@ export function registerReport(program: Command) {
       }
 
       // Preguntar campos que falten interactivamente
+      // Usamos 'input' en vez de 'editor' para evitar abrir vim/nano
+      // y problemas con whitespace inesperado.
+      const MIN_CHARS = 10;
+      const validateField = (label: string) => (v: string) => {
+        const trimmed = v.trim();
+        if (trimmed.length < MIN_CHARS) return `${label}: mínimo ${MIN_CHARS} caracteres (ahora: ${trimmed.length})`;
+        if (trimmed.length > 1000) return `${label}: máximo 1000 caracteres`;
+        return true;
+      };
+
       const answers = await inquirer.prompt<{
         yesterday: string;
         today: string;
@@ -90,18 +100,18 @@ export function registerReport(program: Command) {
         mood: number;
       }>([
         {
-          type: 'editor',
+          type: 'input',
           name: 'yesterday',
           message: '¿Qué hiciste ayer?',
           when: !opts.yesterday,
-          validate: (v: string) => (v.trim().length > 2 ? true : 'Mínimo 3 caracteres'),
+          validate: validateField('Ayer'),
         },
         {
-          type: 'editor',
+          type: 'input',
           name: 'today',
           message: '¿Qué harás hoy?',
           when: !opts.today,
-          validate: (v: string) => (v.trim().length > 2 ? true : 'Mínimo 3 caracteres'),
+          validate: validateField('Hoy'),
         },
         {
           type: 'confirm',
@@ -115,7 +125,7 @@ export function registerReport(program: Command) {
           name: 'blockers',
           message: 'Describe el bloqueante:',
           when: (a: { isBlocker?: boolean }) => a.isBlocker === true && !opts.blockers,
-          validate: (v: string) => (v.trim().length > 2 ? true : 'Mínimo 3 caracteres'),
+          validate: (v: string) => (v.trim().length >= 3 ? true : 'Mínimo 3 caracteres'),
         },
         {
           type: 'list',
@@ -158,6 +168,9 @@ export function registerReport(program: Command) {
 
         if (err instanceof ApiError && err.status === 409) {
           console.error(chalk.yellow('⚠  Ya enviaste un reporte hoy para este proyecto.'));
+        } else if (err instanceof ApiError && err.status === 400) {
+          console.error(chalk.red('✖ Datos inválidos:'), err.message);
+          console.error(chalk.dim('  Asegúrate de que "ayer" y "hoy" tengan al menos 10 caracteres.'));
         } else {
           const msg = err instanceof Error ? err.message : String(err);
           console.error(chalk.red(`✖ Error: ${msg}`));
