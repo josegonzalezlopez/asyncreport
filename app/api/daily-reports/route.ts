@@ -1,4 +1,5 @@
 import { getAuthContext } from '@/lib/helpers/auth';
+import { assertCanReadProject } from '@/lib/helpers/project-access';
 import { dailyService } from '@/lib/services/daily.service';
 import { createDailySchema } from '@/lib/validators/daily.schema';
 import { successResponse, errorResponse } from '@/lib/helpers/api-response';
@@ -49,6 +50,8 @@ export async function GET(req: Request) {
     const projectId = searchParams.get('projectId');
 
     if (!projectId) return errorResponse('projectId requerido', 400);
+
+    await assertCanReadProject(ctx, projectId);
 
     const cursor = searchParams.get('cursor') ?? undefined;
     const take = Number(searchParams.get('take') ?? 20);

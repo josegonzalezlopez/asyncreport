@@ -1,5 +1,6 @@
 import { after } from 'next/server';
 import { getAuthContext, requireRole } from '@/lib/helpers/auth';
+import { assertCanAccessAISummaryProject } from '@/lib/helpers/project-access';
 import { handleApiError } from '@/lib/helpers/handle-error';
 import { successResponse, errorResponse } from '@/lib/helpers/api-response';
 import { aiService } from '@/lib/services/ai.service';
@@ -25,6 +26,8 @@ export async function POST(req: Request) {
     }
 
     const { projectId } = parsed.data;
+
+    await assertCanAccessAISummaryProject(ctx, projectId);
 
     const summaryId = await aiService.initiateSummary(projectId, ctx.dbUserId);
 
@@ -64,6 +67,8 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get('projectId');
     if (!projectId) return errorResponse('projectId es requerido', 400);
+
+    await assertCanAccessAISummaryProject(ctx, projectId);
 
     const history = await aiService.getProjectSummaryHistory(projectId);
     return successResponse(history);

@@ -18,6 +18,8 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "cli": "tsx cli/index.ts",
     "test:e2e": "playwright test",
+    "e2e:check-env": "node scripts/e2e/check-env.mjs",
+    "e2e:seed-db": "tsx scripts/e2e/seed-e2e-db.ts",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:install": "playwright install chromium",
@@ -26,7 +28,10 @@
     "test:integration": "npm test && npm run test:e2e:full",
     "security:supabase": "node scripts/check-supabase-security.mjs",
     "security:deps:audit": "npm audit --omit=dev",
-    "security:deps:report": "node scripts/dependency-audit-report.mjs"
+    "security:deps:report": "node scripts/dependency-audit-report.mjs",
+    "backlog:sync": "bash scripts/github/sync-backlog.sh",
+    "backlog:report": "bash scripts/github/report-backlog.sh",
+    "backlog:all": "npm run backlog:sync && npm run backlog:report"
   },
   "prisma": {
     "seed": "npm run prisma:seed"

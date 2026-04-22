@@ -1,4 +1,5 @@
 import { getAuthContext, requireRole } from '@/lib/helpers/auth';
+import { assertCanReadProject } from '@/lib/helpers/project-access';
 import { projectService } from '@/lib/services/project.service';
 import { updateProjectSchema } from '@/lib/validators/project.schema';
 import { successResponse, errorResponse } from '@/lib/helpers/api-response';
@@ -14,6 +15,8 @@ export async function GET(_req: Request, { params }: Params) {
     if (!ctx) return errorResponse('Unauthorized', 401);
 
     const { id } = await params;
+    await assertCanReadProject(ctx, id);
+
     const project = await projectService.findById(id);
     if (!project) return errorResponse('Proyecto no encontrado', 404);
 
