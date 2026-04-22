@@ -105,6 +105,18 @@ Escenarios completos y guía detallada:
 - `docs/TESTING_SETUP.md`
 - `docs/TEST_SCENARIOS.md`
 
+### Seguridad Supabase (RLS + grants)
+
+- Ejecutar auditoria local/remota:
+
+```bash
+npm run security:supabase
+```
+
+- Documentacion de remediacion:
+  - `docs/SUPABASE_RLS_REMEDIATION.md`
+  - `docs/SUPABASE_SCHEMA_SECURITY_CHECKLIST.md`
+
 ---
 
 ### IA-augmented (recomendación práctica)

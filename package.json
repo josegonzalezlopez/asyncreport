@@ -23,7 +23,8 @@
     "test:e2e:install": "playwright install chromium",
     "test:e2e:full": "tsx tests/e2e/utils/preflight.ts && PW_RUN_WEB_E2E=1 playwright test",
     "test:e2e:quick": "PW_RUN_WEB_E2E=1 playwright test tests/e2e/api tests/e2e/web/public-routes.spec.ts",
-    "test:integration": "npm test && npm run test:e2e:full"
+    "test:integration": "npm test && npm run test:e2e:full",
+    "security:supabase": "node scripts/check-supabase-security.mjs"
   },
   "prisma": {
     "seed": "npm run prisma:seed"
