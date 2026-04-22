@@ -117,6 +117,11 @@ npm run security:supabase
   - `docs/SUPABASE_RLS_REMEDIATION.md`
   - `docs/SUPABASE_SCHEMA_SECURITY_CHECKLIST.md`
 
+### CI — calidad (lint / test / build)
+
+- Workflow: `.github/workflows/ci.yml` (jobs `lint`, `test`, `build` en cada PR a `main` / `release/**`).
+- Detalle y protección de rama: `docs/engineering/CI_QUALITY_GATES.md`.
+
 ### Seguridad de dependencias (supply chain)
 
 - Generar salida de auditoria (`npm audit` en JSON):

@@ -1,0 +1,77 @@
+# P0-10: quality gates en cada PR — lint, test, build
+# Configura en GitHub: Settings → Branches → regla de protección en main
+# requiriendo que este workflow pase antes de mergear.
+
+name: CI
+
+on:
+  push:
+    branches: [main, "release/**"]
+  pull_request:
+    branches: [main, "release/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# Valores de build: no conectan a servicios reales; Prisma generate no abre socket.
+# Ajusta con GitHub Environments/Secrets en el repo si el build exige más claves.
+env:
+  CI: true
+  DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci?schema=public
+  DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/ci?schema=public
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_00000000000000000000000000000000
+  CLERK_SECRET_KEY: sk_test_00000000000000000000000000000000
+  CLERK_WEBHOOK_SECRET: whsec_ci_placeholder
+  GEMINI_API_KEY: ci_gemnini_placeholder
+  RESEND_API_KEY: re_ci_placeholder
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Prisma generate
+        run: npx prisma generate
+      - name: ESLint
+        run: npm run lint
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Prisma generate
+        run: npx prisma generate
+      - name: Vitest
+        run: npm test
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Prisma generate
+        run: npx prisma generate
+      - name: Next.js production build
+        run: npm run build
