@@ -1,0 +1,140 @@
+name: Dependency Security Guardrails
+
+on:
+  pull_request:
+    branches:
+      - main
+      - "release/**"
+  workflow_dispatch:
+
+jobs:
+  dependency-audit-report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit (JSON)
+        run: npm audit --omit=dev --json > audit-output.json || true
+
+      - name: Build dependency report artifacts
+        run: node scripts/dependency-audit-report.mjs audit-output.json dependency-audit-report.json dependency-audit-report.md
+
+      - name: Upload dependency audit artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-security-report
+          path: |
+            audit-output.json
+            dependency-audit-report.json
+            dependency-audit-report.md
+
+  audit-warn-main:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' }}
+    needs: dependency-audit-report
+    permissions:
+      contents: read
+    steps:
+      - name: Download dependency report
+        uses: actions/download-artifact@v4
+        with:
+          name: dependency-security-report
+
+      - name: Main policy summary (warning only)
+        run: |
+          echo "Main branch policy: warning-only."
+          node -e "const fs=require('fs');const r=JSON.parse(fs.readFileSync('dependency-audit-report.json','utf8'));const hc=r.summary.runtime.high+r.summary.runtime.critical;console.log('Runtime vulnerabilities:', r.summary.runtime.total);console.log('High+Critical runtime vulnerabilities:', hc);if(hc>0){console.log('::warning::Runtime high/critical vulnerabilities detected. Non-blocking in main policy.');}"
+
+  audit-fail-release:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' && startsWith(github.base_ref, 'release/') }}
+    needs: dependency-audit-report
+    permissions:
+      contents: read
+    steps:
+      - name: Download dependency report
+        uses: actions/download-artifact@v4
+        with:
+          name: dependency-security-report
+
+      - name: Enforce release policy (fail on high/critical runtime)
+        run: |
+          node -e "const fs=require('fs');const r=JSON.parse(fs.readFileSync('dependency-audit-report.json','utf8'));const high=r.summary.runtime.high;const critical=r.summary.runtime.critical;const total=high+critical;console.log('Release policy check. high=',high,'critical=',critical);if(total>0){console.error('Release policy failed: runtime high/critical vulnerabilities found.');process.exit(1);}console.log('Release policy passed.');"
+
+  ai-remediation-agent:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
+    needs: dependency-audit-report
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Download dependency report
+        uses: actions/download-artifact@v4
+        with:
+          name: dependency-security-report
+
+      - name: Upload remediation artifact copy
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-remediation-agent-output
+          path: |
+            dependency-audit-report.json
+            dependency-audit-report.md
+
+      - name: Comment remediation summary on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('dependency-audit-report.json', 'utf8'));
+            const md = fs.readFileSync('dependency-audit-report.md', 'utf8');
+            const tag = '<!-- dependency-security-agent -->';
+            const summary = [
+              '## Dependency Security Agent',
+              '',
+              `- Runtime total: ${report.summary.runtime.total}`,
+              `- Runtime critical: ${report.summary.runtime.critical}`,
+              `- Runtime high: ${report.summary.runtime.high}`,
+              `- Runtime moderate: ${report.summary.runtime.moderate}`,
+              '',
+              'Policy:',
+              '- main: warning only',
+              '- release/*: fail on runtime high/critical',
+              '',
+              'Remediation artifact generated in this run.',
+            ].join('\n');
+            const body = `${tag}\n${summary}\n\n<details><summary>Report preview</summary>\n\n${md.slice(0, 5000)}\n\n</details>`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const previous = comments.find((c) => c.body && c.body.includes(tag));
+            if (previous) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: previous.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

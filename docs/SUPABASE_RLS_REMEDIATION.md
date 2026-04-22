@@ -90,3 +90,15 @@ Agregar un agente de pre-merge que:
 - comente automaticamente en el PR con diff sugerido y nivel de riesgo
 
 Este flujo reduce tiempo de remediacion y evita regresiones silenciosas en cambios de esquema.
+
+## Controles complementarios de supply chain
+Ademas del control de RLS/grants, se agrego una segunda capa para dependencias:
+- Workflow: `.github/workflows/dependency-security.yml`
+- Politica:
+  - `main`: warning-only
+  - `release/*`: fail en runtime `high/critical`
+- Agente de remediacion:
+  - publica comentario en PR con resumen priorizado
+  - adjunta artifacts (`dependency-audit-report.json/.md`)
+
+Esta separacion permite controlar seguridad de datos y de dependencias con puertas de CI independientes.
