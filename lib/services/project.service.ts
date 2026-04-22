@@ -1,3 +1,4 @@
+import type { Role } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
 import { prisma } from '@/lib/db';
 import { sendProjectAssignmentEmail } from '@/lib/services/email.service';
@@ -104,7 +105,8 @@ export const projectService = {
     });
   },
 
-  async findProjectsForUser(userId: string) {
+  /** Solo proyectos donde el usuario es miembro (p. ej. selector de daily — el API exige membresía). */
+  async findMemberProjectsForUser(userId: string) {
     return prisma.project.findMany({
       where: {
         memberships: { some: { userId } },
@@ -115,6 +117,23 @@ export const projectService = {
       },
       orderBy: { createdAt: 'desc' },
     });
+  },
+
+  /**
+   * Listado de “Mis proyectos”: miembrosía para USER/TECH_LEAD; ADMIN ve todos los no archivados.
+   */
+  async findProjectsForUser(userId: string, role: Role) {
+    if (role === 'ADMIN') {
+      return prisma.project.findMany({
+        where: { status: { not: 'ARCHIVED' } },
+        include: {
+          _count: { select: { memberships: true, dailyReports: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+
+    return projectService.findMemberProjectsForUser(userId);
   },
 
   async isMember(projectId: string, userId: string): Promise<boolean> {

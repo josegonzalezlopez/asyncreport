@@ -1,10 +1,12 @@
+import Link from 'next/link';
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import { projectService } from '@/lib/services/project.service';
 import { userService } from '@/lib/services/user.service';
 import { ProjectStatusBadge } from '@/components/projects/ProjectStatusBadge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { FolderKanban, Users, FileText } from 'lucide-react';
+import { FolderKanban, Users, FileText, ArrowRight } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +17,7 @@ export default async function ProjectsPage() {
   const user = await userService.findByClerkId(userId);
   if (!user) redirect('/sign-in');
 
-  const projects = await projectService.findProjectsForUser(user.id);
+  const projects = await projectService.findProjectsForUser(user.id, user.role);
 
   return (
     <div className="space-y-6">
@@ -44,15 +46,23 @@ export default async function ProjectsPage() {
                   <ProjectStatusBadge status={project.status} />
                 </div>
               </CardHeader>
-              <CardContent className="flex gap-4 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Users className="h-3.5 w-3.5" />
-                  {project._count.memberships}
-                </span>
-                <span className="flex items-center gap-1">
-                  <FileText className="h-3.5 w-3.5" />
-                  {project._count.dailyReports} reportes
-                </span>
+              <CardContent className="space-y-4">
+                <div className="flex gap-4 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5" />
+                    {project._count.memberships}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <FileText className="h-3.5 w-3.5" />
+                    {project._count.dailyReports} reportes
+                  </span>
+                </div>
+                <Button variant="secondary" size="sm" className="w-full" asChild>
+                  <Link href={`/dashboard/p/${project.id}`}>
+                    Abrir espacio de trabajo
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Link>
+                </Button>
               </CardContent>
             </Card>
           ))}
