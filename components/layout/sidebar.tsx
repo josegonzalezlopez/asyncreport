@@ -14,36 +14,116 @@ import {
 import { cn } from '@/lib/utils';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 
+type NavKey =
+  | 'dashboard'
+  | 'projects'
+  | 'dailies'
+  | 'team'
+  | 'ai-summary'
+  | 'admin';
+
 interface NavItem {
+  key: NavKey;
   href: string;
   label: string;
   icon: React.ElementType;
   roles?: string[];
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/projects', label: 'Proyectos', icon: FolderKanban },
-  { href: '/dashboard/dailies', label: 'Mis Dailies', icon: FileText },
-  { href: '/dashboard/team', label: 'Equipo', icon: Users, roles: ['TECH_LEAD', 'ADMIN'] },
-  { href: '/dashboard/ai-summary', label: 'Resumen IA', icon: Sparkles, roles: ['TECH_LEAD', 'ADMIN'] },
-  { href: '/dashboard/admin', label: 'Admin', icon: Settings, roles: ['ADMIN'] },
-];
-
 interface SidebarProps {
   userRole?: string;
+  workspaceProjectId: string | null;
+  aiWorkspaceProjectId: string | null;
 }
 
-export function Sidebar({ userRole }: SidebarProps) {
+function buildNavItems(
+  workspaceProjectId: string | null,
+  aiWorkspaceProjectId: string | null,
+): NavItem[] {
+  const dailiesHref = workspaceProjectId
+    ? `/dashboard/p/${workspaceProjectId}/dailies`
+    : '/dashboard/projects';
+  const teamHref = workspaceProjectId
+    ? `/dashboard/p/${workspaceProjectId}/team`
+    : '/dashboard/projects';
+  const aiHref = aiWorkspaceProjectId
+    ? `/dashboard/p/${aiWorkspaceProjectId}/ai-summary`
+    : '/dashboard/projects';
+
+  return [
+    {
+      key: 'dashboard',
+      href: '/dashboard',
+      label: 'Dashboard',
+      icon: LayoutDashboard,
+    },
+    {
+      key: 'projects',
+      href: '/dashboard/projects',
+      label: 'Proyectos',
+      icon: FolderKanban,
+    },
+    {
+      key: 'dailies',
+      href: dailiesHref,
+      label: 'Mis Dailies',
+      icon: FileText,
+    },
+    {
+      key: 'team',
+      href: teamHref,
+      label: 'Equipo',
+      icon: Users,
+      roles: ['TECH_LEAD', 'ADMIN'],
+    },
+    {
+      key: 'ai-summary',
+      href: aiHref,
+      label: 'Resumen IA',
+      icon: Sparkles,
+      roles: ['TECH_LEAD', 'ADMIN'],
+    },
+    {
+      key: 'admin',
+      href: '/dashboard/admin',
+      label: 'Admin',
+      icon: Settings,
+      roles: ['ADMIN'],
+    },
+  ];
+}
+
+function isNavActive(pathname: string, item: NavItem): boolean {
+  if (item.key === 'dashboard') {
+    return pathname === '/dashboard';
+  }
+  if (item.key === 'dailies') {
+    return /^\/dashboard\/p\/[^/]+\/dailies$/.test(pathname);
+  }
+  if (item.key === 'team') {
+    return /^\/dashboard\/p\/[^/]+\/team$/.test(pathname);
+  }
+  if (item.key === 'ai-summary') {
+    return /^\/dashboard\/p\/[^/]+\/ai-summary$/.test(pathname);
+  }
+  return pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
+
+export function Sidebar({
+  userRole,
+  workspaceProjectId,
+  aiWorkspaceProjectId,
+}: SidebarProps) {
   const pathname = usePathname();
 
-  const visibleItems = NAV_ITEMS.filter(
+  const navItems = buildNavItems(workspaceProjectId, aiWorkspaceProjectId);
+
+  const visibleItems = navItems.filter(
     (item) => !item.roles || item.roles.includes(userRole ?? ''),
   );
 
   return (
     <aside className="flex h-screen w-60 flex-col border-r border-border/50 bg-card/30 backdrop-blur-sm">
-      {/* Logo */}
       <div className="flex h-16 items-center gap-2 px-5 border-b border-border/50">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
           <Sparkles className="h-4 w-4 text-primary-foreground" />
@@ -51,32 +131,29 @@ export function Sidebar({ userRole }: SidebarProps) {
         <span className="font-bold text-lg tracking-tight">AsyncReport</span>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {visibleItems.map(({ href, label, icon: Icon }) => {
-          const isActive = href === '/dashboard'
-            ? pathname === '/dashboard'
-            : pathname.startsWith(href);
+        {visibleItems.map((item) => {
+          const Icon = item.icon;
+          const active = isNavActive(pathname, item);
 
           return (
             <Link
-              key={href}
-              href={href}
+              key={item.key}
+              href={item.href}
               className={cn(
                 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                isActive
+                active
                   ? 'bg-primary/15 text-primary'
                   : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
               )}
             >
               <Icon className="h-4 w-4 shrink-0" />
-              {label}
+              {item.label}
             </Link>
           );
         })}
       </nav>
 
-      {/* Footer con perfil, campana y UserButton */}
       <div className="border-t border-border/50 px-4 py-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <UserButton

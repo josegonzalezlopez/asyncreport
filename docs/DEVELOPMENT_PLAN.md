@@ -17,6 +17,16 @@
 
 ---
 
+## Estado real (actualizado)
+
+- [x] **Producto / UX multi-proyecto completado**: contexto por `projectId` en URL (`/dashboard/p/[projectId]/...`), redirects desde rutas legacy (`/dashboard/dailies`, `/dashboard/team`, `/dashboard/ai-summary`), navegación contextual en sidebar/notificaciones y workspace por proyecto.
+- [x] **Vista por proyecto en dailies/equipo/IA**: cada sección trabaja con datos del proyecto activo en URL (ya no pivota sobre “primer proyecto activo”).
+- [ ] **Hardening de plataforma pendiente** (backlog): RLS/seguridad en profundidad, RBAC en borde (claims + matcher), CI (`lint`, `test`, `build`), ampliación de cobertura y reconciliación completa del documento con estado de código.
+
+> Nota: este bloque se agrega para reflejar el avance real ya implementado en producto. El detalle de backlog de plataforma se prioriza en la fase siguiente.
+
+---
+
 ## Convenciones del Plan
 
 - **[SETUP-XX]** Configuracion de servicios externos e infraestructura

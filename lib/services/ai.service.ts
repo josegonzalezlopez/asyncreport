@@ -232,14 +232,15 @@ export const aiService = {
     return prisma.aISummary.findMany({
       where: {
         projectId,
-        status: AISummaryStatus.COMPLETED,
+        status: { not: AISummaryStatus.FAILED },
       },
-      orderBy: { summaryDate: 'desc' },
+      orderBy: { createdAt: 'desc' },
       select: {
         id: true,
         content: true,
         summaryDate: true,
         tokenCount: true,
+        status: true,
         generatedBy: { select: { name: true } },
       },
     });

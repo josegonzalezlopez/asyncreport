@@ -76,6 +76,7 @@ export const dailyService = {
           project?.name ?? data.projectId,
           reporterName,
           data.blockers!,
+          data.projectId,
         );
       }
 
@@ -157,10 +158,17 @@ export const dailyService = {
     return { items, nextCursor };
   },
 
-  async findByUser(userId: string, projectId: string) {
+  async findByUser(userId: string, projectId: string, options?: { take?: number }) {
+    const take = options?.take ?? 10;
     return prisma.dailyReport.findMany({
       where: { userId, projectId },
       orderBy: { reportDate: 'desc' },
+      take,
+      include: {
+        user: {
+          select: { id: true, name: true, imageUrl: true, specialization: true },
+        },
+      },
     });
   },
 

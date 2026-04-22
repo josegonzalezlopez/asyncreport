@@ -1,8 +1,14 @@
 import type { ReactNode } from 'react';
+import { cookies } from 'next/headers';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import { userService } from '@/lib/services/user.service';
 import { Sidebar } from '@/components/layout/sidebar';
+import { AR_CURRENT_PROJECT_COOKIE } from '@/lib/constants/dashboard-workspace';
+import {
+  resolveSafeCurrentProjectId,
+  resolveSafeCurrentProjectIdForAi,
+} from '@/lib/helpers/dashboard-workspace';
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const { userId } = await auth();
@@ -30,9 +36,17 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     });
   }
 
+  const cookie = (await cookies()).get(AR_CURRENT_PROJECT_COOKIE)?.value;
+  const workspaceProjectId = await resolveSafeCurrentProjectId(cookie, user.id, user.role);
+  const aiWorkspaceProjectId = await resolveSafeCurrentProjectIdForAi(cookie, user);
+
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar userRole={user.role} />
+      <Sidebar
+        userRole={user.role}
+        workspaceProjectId={workspaceProjectId}
+        aiWorkspaceProjectId={aiWorkspaceProjectId}
+      />
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-7xl px-6 py-8">
           {children}

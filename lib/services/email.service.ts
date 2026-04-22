@@ -63,6 +63,7 @@ export async function sendBlockerAlertEmail(
   projectName: string,
   reporterName: string,
   blockerContent: string,
+  projectId?: string,
 ): Promise<void> {
   try {
     const resend = getResendClient();
@@ -76,6 +77,7 @@ export async function sendBlockerAlertEmail(
         projectName,
         reporterName,
         blockerContent,
+        projectId,
       }),
     });
 
@@ -154,7 +156,11 @@ function buildBlockerEmail(p: {
   projectName: string;
   reporterName: string;
   blockerContent: string;
+  projectId?: string;
 }): string {
+  const teamHref = p.projectId
+    ? `${APP_URL}/dashboard/p/${p.projectId}/team`
+    : `${APP_URL}/dashboard/team`;
   return baseLayout(`
     <div style="background:#7f1d1d;border:1px solid #991b1b;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
       <p style="margin:0;font-size:13px;font-weight:700;color:#fca5a5;text-transform:uppercase;letter-spacing:.05em;">
@@ -171,7 +177,7 @@ function buildBlockerEmail(p: {
     <div style="background:#18181b;border-left:3px solid #ef4444;padding:12px 16px;margin:16px 0;border-radius:0 6px 6px 0;">
       <p style="margin:0;color:#d4d4d8;font-style:italic;line-height:1.6;">"${p.blockerContent}"</p>
     </div>
-    <a href="${APP_URL}/dashboard/team"
+    <a href="${teamHref}"
        style="display:inline-block;padding:12px 24px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">
       Ver feed del equipo →
     </a>

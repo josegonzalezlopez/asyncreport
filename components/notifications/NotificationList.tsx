@@ -50,8 +50,15 @@ const TYPE_CONFIG = {
 } as const;
 
 function getNavLink(n: Notification): string | null {
-  if (n.type === 'BLOCKER_ALERT' && n.projectId) return `/dashboard/team`;
-  if (n.type === 'AI_SUMMARY_READY') return `/dashboard/ai-summary`;
+  if (n.type === 'BLOCKER_ALERT' && n.projectId) {
+    return `/dashboard/p/${n.projectId}/team`;
+  }
+  if (n.type === 'AI_SUMMARY_READY' && n.projectId) {
+    return `/dashboard/p/${n.projectId}/ai-summary`;
+  }
+  if (n.type === 'AI_SUMMARY_READY') {
+    return '/dashboard/ai-summary';
+  }
   if (n.type === 'ASSIGNMENT' && n.projectId) return `/dashboard/projects`;
   return null;
 }
