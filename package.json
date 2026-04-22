@@ -26,7 +26,10 @@
     "test:integration": "npm test && npm run test:e2e:full",
     "security:supabase": "node scripts/check-supabase-security.mjs",
     "security:deps:audit": "npm audit --omit=dev",
-    "security:deps:report": "node scripts/dependency-audit-report.mjs"
+    "security:deps:report": "node scripts/dependency-audit-report.mjs",
+    "backlog:sync": "bash scripts/github/sync-backlog.sh",
+    "backlog:report": "bash scripts/github/report-backlog.sh",
+    "backlog:all": "npm run backlog:sync && npm run backlog:report"
   },
   "prisma": {
     "seed": "npm run prisma:seed"
