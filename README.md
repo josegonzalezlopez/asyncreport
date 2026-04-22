@@ -117,6 +117,29 @@ npm run security:supabase
   - `docs/SUPABASE_RLS_REMEDIATION.md`
   - `docs/SUPABASE_SCHEMA_SECURITY_CHECKLIST.md`
 
+### Seguridad de dependencias (supply chain)
+
+- Generar salida de auditoria (`npm audit` en JSON):
+
+```bash
+npm audit --omit=dev --json > audit-output.json || true
+```
+
+- Generar reporte normalizado para CI/agente:
+
+```bash
+npm run security:deps:report
+```
+
+- Workflow en CI:
+  - `.github/workflows/dependency-security.yml`
+  - politica:
+    - PR a `main`: warning-only
+    - PR a `release/*`: fail en `high/critical` runtime
+  - agente:
+    - comenta resumen en PR
+    - sube artifact de remediacion
+
 ---
 
 ### IA-augmented (recomendación práctica)
