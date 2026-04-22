@@ -13,3 +13,4 @@ playwright-report
 test-results
 .auth
 prisma/seed-api-keys.generated.txt
+tsconfig.tsbuildinfo
