@@ -11,8 +11,76 @@ const isPublicRoute = createRouteMatcher([
   '/api/health(.*)',
 ]);
 
+const isAdminOnlyRoute = createRouteMatcher([
+  '/dashboard/admin(.*)',
+  '/api/projects(.*)',
+  '/api/users(.*)',
+]);
+
+const isTechLeadRoute = createRouteMatcher([
+  '/dashboard/team(.*)',
+  '/dashboard/ai-summary(.*)',
+  '/dashboard/p/(.*)/team(.*)',
+  '/dashboard/p/(.*)/ai-summary(.*)',
+  '/api/ai-summary(.*)',
+]);
+
+type AppRole = 'ADMIN' | 'TECH_LEAD' | 'USER' | null;
+
+function isApiPath(pathname: string): boolean {
+  return pathname.startsWith('/api/');
+}
+
+export function extractRoleFromClaims(sessionClaims: unknown): AppRole {
+  const claims =
+    sessionClaims && typeof sessionClaims === 'object'
+      ? (sessionClaims as Record<string, unknown>)
+      : null;
+  if (!claims) return null;
+
+  const metadata =
+    claims.metadata && typeof claims.metadata === 'object'
+      ? (claims.metadata as Record<string, unknown>)
+      : null;
+  const roleCandidate =
+    typeof metadata?.role === 'string'
+      ? metadata.role
+      : typeof claims.role === 'string'
+        ? claims.role
+        : null;
+
+  if (roleCandidate === 'ADMIN' || roleCandidate === 'TECH_LEAD' || roleCandidate === 'USER') {
+    return roleCandidate;
+  }
+  return null;
+}
+
+export function canAccessProtectedRoute(
+  pathname: string,
+  role: AppRole,
+): { allowed: boolean; status?: number } {
+  if (pathname.startsWith('/dashboard/admin') || pathname.startsWith('/api/projects') || pathname.startsWith('/api/users')) {
+    return { allowed: role === 'ADMIN', status: 403 };
+  }
+
+  if (
+    pathname.startsWith('/dashboard/team') ||
+    pathname.startsWith('/dashboard/ai-summary') ||
+    /^\/dashboard\/p\/[^/]+\/team/.test(pathname) ||
+    /^\/dashboard\/p\/[^/]+\/ai-summary/.test(pathname) ||
+    pathname.startsWith('/api/ai-summary')
+  ) {
+    return { allowed: role === 'ADMIN' || role === 'TECH_LEAD', status: 403 };
+  }
+
+  return { allowed: true };
+}
+
 export default clerkMiddleware(async (auth, req) => {
-  if (req.headers.get('x-api-key')) {
+  const pathname = req.nextUrl.pathname;
+
+  // API key auth only applies to API routes. Never bypass dashboard protection.
+  if (req.headers.get('x-api-key') && isApiPath(pathname)) {
     return NextResponse.next();
   }
 
@@ -20,8 +88,20 @@ export default clerkMiddleware(async (auth, req) => {
     await auth.protect();
   }
 
+  if (isAdminOnlyRoute(req) || isTechLeadRoute(req)) {
+    const authState = await auth();
+    const role = extractRoleFromClaims(authState.sessionClaims);
+    const access = canAccessProtectedRoute(pathname, role);
+
+    if (!access.allowed) {
+      return isApiPath(pathname)
+        ? NextResponse.json({ error: 'Forbidden' }, { status: access.status ?? 403 })
+        : new NextResponse('Forbidden', { status: access.status ?? 403 });
+    }
+  }
+
   const res = NextResponse.next();
-  const match = req.nextUrl.pathname.match(/^\/dashboard\/p\/([^/]+)/);
+  const match = pathname.match(/^\/dashboard\/p\/([^/]+)/);
   if (match?.[1]) {
     res.cookies.set(AR_CURRENT_PROJECT_COOKIE, match[1], {
       path: '/',
