@@ -34,3 +34,4 @@ npm run local:prepush
 ## Nota
 
 Esta plantilla no pisa archivos existentes sin backup: hace merge conservador y crea directorios faltantes.
+El pre-push corre `lint + test + e2e full`; el triage con Ollama es manual/opcional.

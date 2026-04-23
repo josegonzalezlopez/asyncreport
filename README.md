@@ -116,12 +116,12 @@ npm run local:hooks:install
 Desde ahi, cada `git push` ejecuta en local:
 - `npm run lint`
 - `npm test`
-- `npm run test:e2e:ci`
+- `npm run test:e2e:full`
 
 Configuracion opcional:
 - `LOCAL_GATES_SKIP_E2E=1 git push` -> omite E2E en equipos lentos.
 - `SKIP_LOCAL_GATES=1 git push` -> bypass puntual de emergencia.
-- `LOCAL_QA_OLLAMA_MODEL=<modelo> npm run local:triage reports/local-quality/prepush-latest.log` -> triage de fallos con Ollama local.
+- `LOCAL_QA_OLLAMA_MODEL=<modelo> npm run local:triage reports/local-quality/prepush-latest.log` -> triage manual opcional con Ollama local (no se ejecuta automaticamente en pre-push).
 
 Artefactos locales:
 - `reports/local-quality/prepush-latest.log`

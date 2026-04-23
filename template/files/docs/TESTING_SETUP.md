@@ -17,4 +17,4 @@ npm run test:e2e:ci
 
 ## Nota
 
-El hook `pre-push` ejecuta este flujo automaticamente.
+El hook `pre-push` ejecuta este flujo automaticamente y usa `test:e2e:full` como gate por defecto.

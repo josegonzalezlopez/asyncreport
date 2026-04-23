@@ -30,20 +30,17 @@ EOF
 echo "Iniciando quality gates locales..." | tee -a "$LOG_FILE"
 
 if ! run_step "Lint" "npm run lint"; then
-  npm run local:triage "$LOG_FILE" || true
   exit 1
 fi
 
 if ! run_step "Unit/Integration (Vitest)" "npm test"; then
-  npm run local:triage "$LOG_FILE" || true
   exit 1
 fi
 
 if [[ "${LOCAL_GATES_SKIP_E2E:-0}" == "1" ]]; then
   echo "LOCAL_GATES_SKIP_E2E=1 detectado: se omite E2E." | tee -a "$LOG_FILE"
 else
-  if ! run_step "E2E smoke local (API + web publica + CLI)" "npm run test:e2e:ci"; then
-    npm run local:triage "$LOG_FILE" || true
+  if ! run_step "E2E full local" "npm run test:e2e:full"; then
     exit 1
   fi
 fi
