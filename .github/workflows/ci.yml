@@ -5,10 +5,6 @@
 name: CI
 
 on:
-  push:
-    branches: [main, "release/**"]
-  pull_request:
-    branches: [main, "release/**"]
   workflow_dispatch:
 
 concurrency:
@@ -75,3 +71,78 @@ jobs:
         run: npx prisma generate
       - name: Next.js production build
         run: npm run build
+
+  e2e:
+    name: e2e-api-web-cli
+    runs-on: ubuntu-latest
+    needs: [lint, test, build]
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Prepare database schema
+        run: npx prisma db push --skip-generate
+      - name: Seed QA dataset
+        run: npm run prisma:seed
+      - name: Generate E2E CI env
+        run: npm run e2e:prepare-ci
+      - name: Run Playwright E2E (API + web public + CLI)
+        id: run-e2e
+        run: npm run test:e2e:ci 2>&1 | tee e2e-output.log
+      - name: Triage E2E log
+        if: failure()
+        run: npm run e2e:triage-log
+      - name: Upload E2E triage
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-triage
+          path: e2e-triage.md
+          if-no-files-found: ignore
+      - name: Comment triage on PR
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'e2e-triage.md';
+            if (!context.issue.number || !fs.existsSync(path)) {
+              core.info('No PR context or no triage file.');
+              return;
+            }
+            const body = fs.readFileSync(path, 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7
+          if-no-files-found: ignore
