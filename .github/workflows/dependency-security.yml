@@ -1,10 +1,6 @@
 name: Dependency Security Guardrails
 
 on:
-  pull_request:
-    branches:
-      - main
-      - "release/**"
   workflow_dispatch:
 
 jobs:
@@ -42,7 +38,7 @@ jobs:
 
   audit-warn-main:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     needs: dependency-audit-report
     permissions:
       contents: read
@@ -59,7 +55,7 @@ jobs:
 
   audit-fail-release:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'pull_request' && startsWith(github.base_ref, 'release/') }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     needs: dependency-audit-report
     permissions:
       contents: read
@@ -75,7 +71,7 @@ jobs:
 
   ai-remediation-agent:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     needs: dependency-audit-report
     permissions:
       contents: read

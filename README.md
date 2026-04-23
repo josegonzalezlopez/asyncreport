@@ -105,6 +105,29 @@ Escenarios completos y guía detallada:
 - `docs/TESTING_SETUP.md`
 - `docs/TEST_SCENARIOS.md`
 
+### Quality gates locales (pre-push, costo cero)
+
+Para bloquear pushes con regresiones sin consumir GitHub Actions:
+
+```bash
+npm run local:hooks:install
+```
+
+Desde ahi, cada `git push` ejecuta en local:
+- `npm run lint`
+- `npm test`
+- `npm run test:e2e:ci`
+
+Configuracion opcional:
+- `LOCAL_GATES_SKIP_E2E=1 git push` -> omite E2E en equipos lentos.
+- `SKIP_LOCAL_GATES=1 git push` -> bypass puntual de emergencia.
+- `LOCAL_QA_OLLAMA_MODEL=<modelo> npm run local:triage reports/local-quality/prepush-latest.log` -> triage de fallos con Ollama local.
+
+Artefactos locales:
+- `reports/local-quality/prepush-latest.log`
+- `reports/local-quality/prepush-summary.md`
+- `reports/local-quality/prepush-triage.md`
+
 ### Seguridad Supabase (RLS + grants)
 
 - Ejecutar auditoria local/remota:
