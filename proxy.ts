@@ -94,9 +94,12 @@ export default clerkMiddleware(async (auth, req) => {
     const access = canAccessProtectedRoute(pathname, role);
 
     if (!access.allowed) {
-      return isApiPath(pathname)
-        ? NextResponse.json({ error: 'Forbidden' }, { status: access.status ?? 403 })
-        : new NextResponse('Forbidden', { status: access.status ?? 403 });
+      // Para dashboard preferimos delegar autorización a la capa de página/servicio
+      // (usa DB role y membresías actuales). Evita "Forbidden" duro por claims stale.
+      if (isApiPath(pathname)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: access.status ?? 403 });
+      }
+      return NextResponse.next();
     }
   }
 

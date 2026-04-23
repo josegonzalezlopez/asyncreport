@@ -23,7 +23,7 @@ export default async function ProjectTeamPage({ params }: Props) {
   if (!user) redirect('/sign-in');
 
   if (user.role !== 'TECH_LEAD' && user.role !== 'ADMIN') {
-    redirect('/dashboard');
+    redirect('/dashboard/forbidden');
   }
 
   const project = await prisma.project.findUnique({

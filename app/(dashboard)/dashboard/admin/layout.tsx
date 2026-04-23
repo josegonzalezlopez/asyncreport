@@ -7,7 +7,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const ctx = await getAuthContext();
 
   if (!ctx || !requireRole(ctx, 'ADMIN')) {
-    redirect('/dashboard');
+    redirect('/dashboard/forbidden');
   }
 
   return <>{children}</>;

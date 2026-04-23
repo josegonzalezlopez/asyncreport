@@ -8,12 +8,12 @@
 
 | Fase | Nombre | Tareas | Estado |
 |------|--------|--------|--------|
-| [Fase 1](#fase-1) | Cimientos y Arquitectura | SETUP-01 a 05, BACK-01 a 03, AUTH-01 a 03, TEST-01 a 02, FRONT-01 a 02 | Pendiente |
-| [Fase 2](#fase-2) | Gestion de Proyectos (Admin) | BACK-04 a 05, FRONT-03 a 04 | Pendiente |
-| [Fase 3](#fase-3) | Core: Dailies y Reportes | BACK-06 a 08, FRONT-05 a 06 | Pendiente |
-| [Fase 4](#fase-4) | Inteligencia Artificial (Tech Lead) | AI-01 a 05 | Pendiente |
-| [Fase 5](#fase-5) | UI/UX, Dashboard y Notificaciones | NOTIF-01 a 03, PERF-01 a 02, FRONT-07 | Pendiente |
-| [Fase 6](#fase-6) | CLI Tool | SETUP-06, BACK-09 | Pendiente |
+| [Fase 1](#fase-1) | Cimientos y Arquitectura | SETUP-01 a 05, BACK-01 a 03, AUTH-01 a 03, TEST-01 a 02, FRONT-01 a 02 | Parcial (alto) |
+| [Fase 2](#fase-2) | Gestion de Proyectos (Admin) | BACK-04 a 05, FRONT-03 a 04 | Completada |
+| [Fase 3](#fase-3) | Core: Dailies y Reportes | BACK-06 a 08, FRONT-05 a 06 | Parcial (alto) |
+| [Fase 4](#fase-4) | Inteligencia Artificial (Tech Lead) | AI-01 a 05 | Parcial (alto) |
+| [Fase 5](#fase-5) | UI/UX, Dashboard y Notificaciones | NOTIF-01 a 03, PERF-01 a 02, FRONT-07 | Parcial |
+| [Fase 6](#fase-6) | CLI Tool | SETUP-06, BACK-09 | Completada (funcional) |
 
 ---
 
@@ -22,6 +22,7 @@
 - [x] **Producto / UX multi-proyecto completado**: contexto por `projectId` en URL (`/dashboard/p/[projectId]/...`), redirects desde rutas legacy (`/dashboard/dailies`, `/dashboard/team`, `/dashboard/ai-summary`), navegación contextual en sidebar/notificaciones y workspace por proyecto.
 - [x] **Vista por proyecto en dailies/equipo/IA**: cada sección trabaja con datos del proyecto activo en URL (ya no pivota sobre “primer proyecto activo”).
 - [ ] **Hardening de plataforma pendiente** (backlog): RLS/seguridad en profundidad, RBAC en borde (claims + matcher), CI (`lint`, `test`, `build`), ampliación de cobertura y reconciliación completa del documento con estado de código.
+- [x] **Reconciliación de testing E2E (P0-11)**: `test:e2e:api` con preflight API, `e2e:check-env` en dos niveles, documentación en `E2E_INTEGRATION` / `TESTING_SETUP` alineada con `tests/e2e` y `preflight-lib`.
 
 > Nota: este bloque se agrega para reflejar el avance real ya implementado en producto. El detalle de backlog de plataforma se prioriza en la fase siguiente.
 
@@ -41,7 +42,7 @@
 > - El archivo route.ts en app/api es el Controlador: maneja HTTP, extrae params, llama al servicio.
 > - Los archivos en lib/services son los Servicios de Angular: contienen logica de negocio y acceso a DB.
 > - Los archivos en lib/validators son los DTOs con validacion (Zod en lugar de class-validator).
-> - El archivo middleware.ts es el Guard de ruta: equivalente a AuthGuard y RoleGuard combinados.
+> - El archivo proxy.ts es el Guard de ruta (convención Next.js 16): equivalente a AuthGuard y RoleGuard combinados.
 
 ---
 
@@ -404,27 +405,27 @@ Los tests de `sanitize.ts` son los de mayor criticidad ética y de seguridad: ga
 
 ---
 
-### [AUTH-01] Implementar Middleware de Next.js con RBAC
+### [AUTH-01] Implementar Guard de Next.js con RBAC (proxy.ts)
 
 **Descripcion:**
-El middleware de Next.js es el equivalente al AuthGuard combinado con el RoleGuard de Angular. Se ejecuta en el Edge Runtime antes de que cualquier request llegue a una pagina o API Route. Su responsabilidad es: verificar que existe sesion activa de Clerk y, para rutas protegidas por rol, verificar que el usuario tiene el rol requerido leyendo el JWT.
+El guard de Next.js (archivo `proxy.ts` en Next.js 16) es el equivalente al AuthGuard combinado con el RoleGuard de Angular. Se ejecuta en el Edge Runtime antes de que cualquier request llegue a una pagina o API Route. Su responsabilidad es: verificar que existe sesion activa de Clerk y, para rutas protegidas por rol, verificar que el usuario tiene el rol requerido leyendo el JWT.
 
 **Implementacion Tecnica:**
-1. Crear el archivo middleware.ts en la raiz del proyecto.
+1. Crear/actualizar el archivo `proxy.ts` en la raiz del proyecto.
 2. Importar clerkMiddleware y createRouteMatcher desde @clerk/nextjs/server.
 3. Definir tres matchers de rutas:
    - Rutas publicas: landing (/), /sign-in, /sign-up y /api/webhooks/*. Estas pasan sin ninguna verificacion.
    - Rutas de Admin: /dashboard/admin/* y /api/projects/*. Solo accesibles con role ADMIN.
    - Rutas de Tech Lead: /dashboard/team/* y /api/ai-summary/*. Accesibles con role TECH_LEAD o ADMIN.
 4. Dentro del handler de clerkMiddleware: si la ruta es publica, continuar. Si no hay userId en el contexto de Clerk, redirigir a /sign-in preservando la URL de retorno. Si la ruta es de Admin y el rol del JWT no es ADMIN, retornar 403. Si la ruta es de Tech Lead y el rol no es TECH_LEAD ni ADMIN, retornar 403.
-5. Configurar el campo "config" con el matcher correcto para que el middleware se ejecute en todas las rutas excepto archivos estaticos y el directorio _next.
+5. Configurar el campo `config` con el matcher correcto para que el guard se ejecute en todas las rutas excepto archivos estaticos y el directorio _next.
 6. Nota de seguridad: en el dashboard de Clerk, en Sessions > Customize session token, asegurarse de incluir el campo publicMetadata (que contiene el role) dentro de los claims del JWT. Sin esto, sessionClaims.metadata.role sera undefined y todas las verificaciones de rol fallaran.
 
 **Importancia:**
 Es la primera linea de defensa de seguridad. Sin middleware, cualquier usuario autenticado podria acceder a endpoints de administracion. Es mas eficiente que verificar roles en cada API Route individualmente porque opera antes de que el request llegue al handler.
 
 **Criterios de Aceptacion:**
-- [ ] middleware.ts creado en la raiz del proyecto.
+- [ ] `proxy.ts` creado en la raiz del proyecto.
 - [ ] Acceder a /dashboard sin sesion activa redirige a /sign-in.
 - [ ] Las rutas /api/webhooks/clerk son accesibles sin autenticacion (verificable con curl).
 - [ ] Un usuario con role USER recibe respuesta 403 al intentar acceder a /api/projects.
@@ -1279,7 +1280,7 @@ Todas las siguientes variables deben estar definidas en .env.local para desarrol
 | GEMINI_API_KEY | Google AI | Clave de la API de Gemini |
 | RESEND_API_KEY | Resend | Clave del servicio de email |
 | RESEND_FROM_EMAIL | Resend | Email remitente (noreply@tudominio.com) |
-| ASYNCREPORT_API_URL | CLI | URL base de la API (ej: https://async-report.vercel.app). Solo usada por el CLI. |
+| ASYNCREPORT_BASE_URL | CLI | URL base de la API (ej: https://async-report.vercel.app). Solo usada por el CLI. |
 
 ---
 
@@ -1383,7 +1384,7 @@ El flujo CLI no puede usar el OAuth de Clerk (requiere navegador). Se necesita u
 4. Crear los endpoints en `app/api/api-keys/route.ts`:
    - `POST`: genera una nueva API Key para el usuario autenticado (via Clerk en web). Retorna el token en claro una sola vez.
    - `GET`: lista las API Keys del usuario (solo metadata: id, name, lastUsedAt — nunca el hash).
-   - `DELETE /api/keys/:id`: revoca una API Key.
+   - `DELETE /api/api-keys/:id`: revoca una API Key.
 5. Agregar sección "API Keys" en `app/dashboard/profile/page.tsx` donde el usuario puede ver y revocar sus claves.
 6. En `lib/helpers/auth.ts`, ampliar `getAuthContext` para soportar autenticación por API Key: si el header `Authorization: Bearer <key>` está presente y no hay sesión de Clerk, intentar verificar la clave via `apikey.service.verify`. Esto permite que las API Routes funcionen tanto para el dashboard web (Clerk) como para el CLI (API Key) sin cambios en los endpoints.
 

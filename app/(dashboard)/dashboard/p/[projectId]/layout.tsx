@@ -31,7 +31,7 @@ export default async function ProjectWorkspaceLayout({ children, params }: Props
   const canAccessWorkspace =
     user.role === 'ADMIN' || (await projectService.isMember(projectId, user.id));
   if (!canAccessWorkspace) {
-    redirect('/dashboard/projects');
+    redirect('/dashboard/forbidden');
   }
 
   return <>{children}</>;
