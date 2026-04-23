@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
@@ -36,7 +36,7 @@ export function EditProjectForm({ project, onUpdated, onClose }: Props) {
     register,
     handleSubmit,
     setValue,
-    watch,
+    control,
     reset,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<UpdateProjectDto>({
@@ -56,7 +56,7 @@ export function EditProjectForm({ project, onUpdated, onClose }: Props) {
     });
   }, [project, reset]);
 
-  const currentStatus = watch('status');
+  const currentStatus = useWatch({ control, name: 'status' });
 
   async function onSubmit(data: UpdateProjectDto) {
     const res = await fetch(`/api/projects/${project.id}`, {

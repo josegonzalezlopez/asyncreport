@@ -85,6 +85,7 @@ export function ApiKeysManager() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchKeys();
   }, [fetchKeys]);
 
@@ -204,7 +205,7 @@ export function ApiKeysManager() {
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>¿Revocar "{key.name}"?</AlertDialogTitle>
+                    <AlertDialogTitle>¿Revocar &quot;{key.name}&quot;?</AlertDialogTitle>
                       <AlertDialogDescription>
                         Cualquier CLI configurado con esta clave dejará de funcionar
                         inmediatamente. Esta acción es irreversible.
