@@ -18,8 +18,10 @@ npm test                # unit/integration vitest
 npm run test:cli        # subset unit del CLI
 npm run test:e2e:install # instalar browser chromium
 npm run test:e2e        # e2e headless
-npm run test:e2e:quick  # smoke rápido (api + rutas públicas web)
-npm run test:e2e:full   # exige preflight y corre TODO (sin skips por config)
+npm run test:e2e:quick  # misma batería que :api, sin preflight en npm
+npm run test:e2e:api    # preflight (solo API) + api + rutas web públicas
+npm run test:e2e:full   # preflight (API + storage) + toda la suite
+npm run e2e:export-storage  # genera E2E_STORAGE_STATE (Clerk, navegador; app en marcha)
 npm run test:integration # vitest + e2e full (entorno completo)
 npm run test:e2e:headed # e2e con browser visible
 npm run test:e2e:ui     # UI runner de Playwright

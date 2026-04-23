@@ -24,34 +24,33 @@ export default async function ProjectAISummaryPage({ params }: Props) {
   if (!user) redirect('/sign-in');
 
   if (user.role !== 'TECH_LEAD' && user.role !== 'ADMIN') {
-    redirect('/dashboard');
+    redirect('/dashboard/forbidden');
   }
 
-  const membership = await prisma.projectUser.findUnique({
-    where: {
-      userId_projectId: { userId: user.id, projectId },
-    },
-    include: {
-      project: {
-        select: {
-          id: true,
-          name: true,
-          status: true,
-          _count: { select: { memberships: true } },
-        },
-      },
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      _count: { select: { memberships: true } },
     },
   });
-
-  if (!membership || membership.project.status !== 'ACTIVE') {
+  if (!project || project.status !== 'ACTIVE') {
     redirect('/dashboard/projects');
   }
 
-  if (user.role === 'TECH_LEAD' && !membership.isTechLead) {
-    redirect('/dashboard');
+  if (user.role === 'TECH_LEAD') {
+    const membership = await prisma.projectUser.findUnique({
+      where: {
+        userId_projectId: { userId: user.id, projectId },
+      },
+      select: { isTechLead: true },
+    });
+    if (!membership?.isTechLead) {
+      redirect('/dashboard/forbidden');
+    }
   }
-
-  const project = membership.project;
   const history = await aiService.getProjectSummaryHistory(projectId);
   const firstCompletedId = history.find((s) => s.status === AISummaryStatus.COMPLETED)?.id;
 
