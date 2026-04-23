@@ -1,0 +1,85 @@
+name: E2E Nightly Full
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-nightly-full-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: true
+  DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci?schema=public
+  DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/ci?schema=public
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+  CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+  CLERK_WEBHOOK_SECRET: ${{ secrets.CLERK_WEBHOOK_SECRET }}
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+  RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+
+jobs:
+  e2e-full:
+    name: e2e-full-nightly
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Prepare database schema
+        run: npx prisma db push --skip-generate
+      - name: Seed QA dataset
+        run: npm run prisma:seed
+      - name: Generate E2E API env
+        run: npm run e2e:prepare-ci
+      - name: Append Clerk full-test env
+        run: |
+          {
+            echo "E2E_CLERK_TEST_EMAIL=${{ secrets.E2E_CLERK_TEST_EMAIL }}";
+          } >> "$GITHUB_ENV"
+      - name: Validate required secret for full run
+        run: |
+          if [ -z "${E2E_CLERK_TEST_EMAIL:-}" ]; then
+            echo "E2E_CLERK_TEST_EMAIL secret is required for nightly full run." >&2
+            exit 1
+          fi
+      - name: Run Playwright E2E full
+        run: npm run test:e2e:full 2>&1 | tee e2e-output.log
+      - name: Triage E2E log
+        if: failure()
+        run: npm run e2e:triage-log
+      - name: Upload E2E triage
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-nightly-triage
+          path: e2e-triage.md
+          if-no-files-found: ignore
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-nightly
+          path: playwright-report
+          retention-days: 7
+          if-no-files-found: ignore
